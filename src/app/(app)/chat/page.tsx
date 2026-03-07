@@ -1,7 +1,7 @@
 "use client";
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { ThreadSidebar } from "@/components/chat/ThreadSidebar";
+import { ModernChatSidebar } from "@/components/chat/ModernChatSidebar";
 import { Button } from "@/components/ui/Button";
 
 export default function ChatIndexPage() {
@@ -26,7 +26,7 @@ export default function ChatIndexPage() {
 
     return (
         <div className="flex h-full">
-            <ThreadSidebar />
+            <ModernChatSidebar />
             <div className="flex-1 flex items-center justify-center bg-surface">
                 <div className="text-center space-y-4 animate-fade-in">
                     <div className="w-16 h-16 rounded-2xl bg-accent-dim border border-accent/20 flex items-center justify-center text-3xl mx-auto">

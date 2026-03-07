@@ -1,7 +1,7 @@
 "use client";
 import { useEffect, useRef, useState, useCallback } from "react";
 import { useParams } from "next/navigation";
-import { ThreadSidebar } from "@/components/chat/ThreadSidebar";
+import { ModernChatSidebar } from "@/components/chat/ModernChatSidebar";
 import { ChatMessage } from "@/components/chat/ChatMessage";
 import { ChatInput } from "@/components/chat/ChatInput";
 import { ToolIndicator } from "@/components/chat/ToolIndicator";
@@ -214,7 +214,7 @@ export default function ChatThreadPage() {
     if (initialLoad) {
         return (
             <div className="flex h-full">
-                <ThreadSidebar />
+                <ModernChatSidebar />
                 <div className="flex-1 flex items-center justify-center">
                     <Spinner className="w-5 h-5" />
                 </div>
@@ -224,7 +224,7 @@ export default function ChatThreadPage() {
 
     return (
         <div className="flex h-full">
-            <ThreadSidebar />
+            <ModernChatSidebar />
 
             {/* Chat area */}
             <div className="flex-1 flex flex-col min-w-0 bg-surface">
