@@ -1,0 +1,21 @@
+# syntax=docker/dockerfile:1
+# Node 22 on Debian Bookworm — works on both amd64 and arm64 (Apple Silicon)
+FROM node:22-bookworm-slim
+
+# Install OpenSSL 3 — required by Prisma on Debian
+RUN apt-get update -y && \
+    apt-get install -y openssl libssl-dev ca-certificates && \
+    rm -rf /var/lib/apt/lists/*
+
+WORKDIR /app
+
+COPY package.json package-lock.json* ./
+RUN npm install
+
+COPY . .
+
+EXPOSE 3000
+ENV NODE_ENV=development
+
+# Run prisma generate at startup AFTER volume mounts, then start dev server
+CMD ["sh", "-c", "npx prisma generate && npm run dev"]
