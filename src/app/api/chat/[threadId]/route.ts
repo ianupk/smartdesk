@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { HumanMessage } from "@langchain/core/messages";
 import { Command } from "@langchain/langgraph";
-import { authOptions } from "@/app/api/auth/[...nextauth]/route";
+import { authOptions } from "@/lib/auth";
 import { getGraph } from "@/lib/graph";
 import { prisma } from "@/lib/prisma";
 

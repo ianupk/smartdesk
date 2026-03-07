@@ -1,0 +1,295 @@
+"use client";
+import { useEffect, useRef, useState, useCallback } from "react";
+import { useParams } from "next/navigation";
+import { ThreadSidebar } from "@/components/chat/ThreadSidebar";
+import { ChatMessage } from "@/components/chat/ChatMessage";
+import { ChatInput } from "@/components/chat/ChatInput";
+import { ToolIndicator } from "@/components/chat/ToolIndicator";
+import { InterruptCard } from "@/components/chat/InterruptCard";
+import { SuggestionGrid } from "@/components/chat/SuggestionGrid";
+import { Spinner } from "@/components/ui/Spinner";
+import { v4 as uuid } from "uuid";
+import type { ChatMessage as ChatMessageType, StreamEvent } from "@/types";
+
+interface InterruptState {
+    question: string;
+    details: Record<string, unknown>;
+}
+
+export default function ChatThreadPage() {
+    const { threadId } = useParams<{ threadId: string }>();
+    const [messages, setMessages] = useState<ChatMessageType[]>([]);
+    const [input, setInput] = useState("");
+    const [loading, setLoading] = useState(false);
+    const [initialLoad, setInitialLoad] = useState(true);
+    const [activeTool, setActiveTool] = useState<string | null>(null);
+    const [streamingText, setStreamingText] = useState("");
+    const [interrupt, setInterrupt] = useState<InterruptState | null>(null);
+    const [interruptLoading, setInterruptLoading] = useState(false);
+    const bottomRef = useRef<HTMLDivElement>(null);
+
+    // Load existing messages from DB
+    useEffect(() => {
+        if (!threadId) return;
+        setInitialLoad(true);
+        fetch(`/api/threads/${threadId}`)
+            .then((r) => r.json())
+            .then(({ thread }) => {
+                if (thread?.messages) {
+                    setMessages(
+                        thread.messages.map(
+                            (m: {
+                                id: string;
+                                role: string;
+                                content: string;
+                                toolCalls: string[];
+                                createdAt: string;
+                            }) => ({
+                                id: m.id,
+                                role: m.role as "user" | "assistant",
+                                content: m.content,
+                                toolCalls: m.toolCalls,
+                                createdAt: new Date(m.createdAt),
+                            }),
+                        ),
+                    );
+                }
+                setInitialLoad(false);
+            })
+            .catch(() => setInitialLoad(false));
+    }, [threadId]);
+
+    useEffect(() => {
+        bottomRef.current?.scrollIntoView({ behavior: "smooth" });
+    }, [messages, streamingText, interrupt, activeTool]);
+
+    const streamRequest = useCallback(
+        async (body: object) => {
+            setLoading(true);
+            setActiveTool(null);
+            setStreamingText("");
+            setInterrupt(null);
+
+            let accumulated = "";
+            const toolsMade: string[] = [];
+
+            try {
+                const res = await fetch(`/api/chat/${threadId}`, {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify(body),
+                });
+
+                if (!res.ok) throw new Error(`HTTP ${res.status}`);
+
+                const reader = res.body!.getReader();
+                const dec = new TextDecoder();
+
+                while (true) {
+                    const { done, value } = await reader.read();
+                    if (done) break;
+
+                    const lines = dec.decode(value).split("\n");
+                    for (const line of lines) {
+                        if (!line.startsWith("data: ")) continue;
+                        const event: StreamEvent & {
+                            details?: Record<string, unknown>;
+                        } = JSON.parse(line.slice(6));
+
+                        if (event.type === "tool_call" && event.tool) {
+                            setActiveTool(event.tool);
+                            toolsMade.push(event.tool);
+                        }
+
+                        if (event.type === "token" && event.content) {
+                            accumulated += event.content;
+                            setStreamingText(accumulated);
+                        }
+
+                        if (event.type === "interrupt" && event.content) {
+                            setInterrupt({
+                                question: event.content,
+                                details: event.details ?? {},
+                            });
+                            setActiveTool(null);
+                            setLoading(false);
+                            setStreamingText("");
+                            return;
+                        }
+
+                        if (event.type === "done") {
+                            setActiveTool(null);
+                            setStreamingText("");
+                            if (accumulated) {
+                                setMessages((prev) => [
+                                    ...prev,
+                                    {
+                                        id: uuid(),
+                                        role: "assistant",
+                                        content: accumulated,
+                                        toolCalls: toolsMade,
+                                        createdAt: new Date(),
+                                    },
+                                ]);
+                            }
+                        }
+
+                        if (event.type === "error") {
+                            setActiveTool(null);
+                            setStreamingText("");
+                            setMessages((prev) => [
+                                ...prev,
+                                {
+                                    id: uuid(),
+                                    role: "assistant",
+                                    content: `⚠ ${event.message}`,
+                                    toolCalls: [],
+                                    createdAt: new Date(),
+                                },
+                            ]);
+                        }
+                    }
+                }
+            } catch (err) {
+                setMessages((prev) => [
+                    ...prev,
+                    {
+                        id: uuid(),
+                        role: "assistant",
+                        content: "⚠ Connection error. Please try again.",
+                        toolCalls: [],
+                        createdAt: new Date(),
+                    },
+                ]);
+            }
+            setLoading(false);
+        },
+        [threadId],
+    );
+
+    const sendMessage = useCallback(
+        (text?: string) => {
+            const content = text ?? input.trim();
+            if (!content || loading) return;
+            setInput("");
+
+            // Optimistically add user message to UI (DB save happens in API route)
+            setMessages((prev) => [
+                ...prev,
+                {
+                    id: uuid(),
+                    role: "user",
+                    content,
+                    toolCalls: [],
+                    createdAt: new Date(),
+                },
+            ]);
+
+            streamRequest({ message: content });
+        },
+        [input, loading, streamRequest],
+    );
+
+    const respondToInterrupt = useCallback(
+        (confirmed: boolean) => {
+            setMessages((prev) => [
+                ...prev,
+                {
+                    id: uuid(),
+                    role: "user",
+                    content: confirmed ? "✓ Yes, go ahead" : "✗ Cancel",
+                    toolCalls: [],
+                    createdAt: new Date(),
+                },
+            ]);
+            setInterrupt(null);
+            setInterruptLoading(confirmed);
+            streamRequest({ resume: confirmed }).finally(() =>
+                setInterruptLoading(false),
+            );
+        },
+        [streamRequest],
+    );
+
+    if (initialLoad) {
+        return (
+            <div className="flex h-full">
+                <ThreadSidebar />
+                <div className="flex-1 flex items-center justify-center">
+                    <Spinner className="w-5 h-5" />
+                </div>
+            </div>
+        );
+    }
+
+    return (
+        <div className="flex h-full">
+            <ThreadSidebar />
+
+            {/* Chat area */}
+            <div className="flex-1 flex flex-col min-w-0 bg-surface">
+                {/* Messages */}
+                <div className="flex-1 overflow-y-auto">
+                    {messages.length === 0 && !streamingText ? (
+                        <SuggestionGrid onSelect={(t) => sendMessage(t)} />
+                    ) : (
+                        <div className="max-w-2xl mx-auto px-6 py-6 space-y-6">
+                            {messages.map((msg) => (
+                                <ChatMessage key={msg.id} message={msg} />
+                            ))}
+
+                            {/* Streaming assistant message */}
+                            {streamingText && (
+                                <ChatMessage
+                                    message={{
+                                        id: "streaming",
+                                        role: "assistant",
+                                        content: streamingText + "▋",
+                                        toolCalls: [],
+                                        createdAt: new Date(),
+                                    }}
+                                />
+                            )}
+
+                            {/* Tool activity */}
+                            {activeTool && <ToolIndicator tool={activeTool} />}
+
+                            {/* Interrupt confirmation */}
+                            {interrupt && (
+                                <InterruptCard
+                                    question={interrupt.question}
+                                    details={interrupt.details}
+                                    onConfirm={() => respondToInterrupt(true)}
+                                    onCancel={() => respondToInterrupt(false)}
+                                    loading={interruptLoading}
+                                />
+                            )}
+
+                            <div ref={bottomRef} />
+                        </div>
+                    )}
+                </div>
+
+                {/* Input */}
+                <div className="border-t border-border bg-surface-1 px-6 py-4">
+                    <div className="max-w-2xl mx-auto space-y-2">
+                        <ChatInput
+                            value={input}
+                            onChange={setInput}
+                            onSend={() => sendMessage()}
+                            disabled={loading || !!interrupt}
+                            placeholder={
+                                interrupt
+                                    ? "Respond to the confirmation above…"
+                                    : "Ask SmartDesk anything…"
+                            }
+                        />
+                        <p className="text-center text-[0.65rem] text-ink-muted font-mono tracking-wide">
+                            LANGGRAPH · POSTGRES MEMORY
+                        </p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    );
+}
