@@ -116,7 +116,7 @@ function CollapsedView({ session, creating, onNewChat }: { session: ReturnType<t
                                 style={{ background: "var(--bg-3)" }}>
                                 {int.logo}
                             </div>
-                            {connected && <span className="absolute -top-0.5 -right-0.5 w-2 h-2 rounded-full" style={{ background: "var(--success)", border: "2px solid var(--bg-1)" }} />}
+                            {connected && <span className="absolute -top-0.5 -right-0.5 w-2 h-2 rounded-full" style={{ background: "#22c55e", border: "2px solid var(--bg-1)", boxShadow: "0 0 6px rgba(34,197,94,0.6)" }} />}
                             <div className="absolute left-full ml-2 top-1/2 -translate-y-1/2 text-xs px-2 py-1 rounded-lg whitespace-nowrap opacity-0 group-hover:opacity-100 pointer-events-none transition-opacity z-50"
                                 style={{ background: "var(--bg-3)", color: "var(--text-2)", border: "1px solid var(--border)" }}>
                                 {int.name}
@@ -208,7 +208,7 @@ function ExpandedView({ threads, loading, creating, activeId, session, onNewChat
                             <div key={int.id} className="flex items-center gap-2.5">
                                 <div className={cn("shrink-0", connected ? "" : "opacity-20 grayscale")}>{int.logo}</div>
                                 <span className="text-xs flex-1" style={{ color: "var(--text-3)" }}>{int.name}</span>
-                                <span className="w-1.5 h-1.5 rounded-full" style={{ background: connected ? "var(--success)" : "var(--border)" }} />
+                                <span className="w-2 h-2 rounded-full flex-shrink-0" style={{ background: connected ? "#22c55e" : "rgba(255,255,255,0.12)", boxShadow: connected ? "0 0 5px rgba(34,197,94,0.5)" : "none" }} />
                             </div>
                         );
                     })}

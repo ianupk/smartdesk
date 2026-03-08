@@ -33,7 +33,7 @@ export function DashboardHeader() {
                                     style={{ background: "var(--bg-3)" }}>
                                     {logo.svg}
                                 </div>
-                                {connected && <span className="absolute -top-0.5 -right-0.5 w-1.5 h-1.5 rounded-full border" style={{ background: "var(--success)", borderColor: "var(--bg-1)" }} />}
+                                {connected && <span className="absolute -top-0.5 -right-0.5 w-1.5 h-1.5 rounded-full border" style={{ background: "#22c55e", borderColor: "var(--bg-1)", boxShadow: "0 0 5px rgba(34,197,94,0.6)" }} />}
                                 <div className="absolute top-full mt-2 left-1/2 -translate-x-1/2 text-xs px-2 py-1 rounded-lg whitespace-nowrap opacity-0 group-hover:opacity-100 pointer-events-none transition-opacity z-50"
                                     style={{ background: "var(--bg-3)", color: "var(--text-2)", border: "1px solid var(--border)" }}>
                                     {logo.name}

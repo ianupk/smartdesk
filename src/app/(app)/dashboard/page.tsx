@@ -7,14 +7,14 @@ import { DashboardHeader } from "@/components/dashboard/DashboardHeader";
 import { Spinner } from "@/components/ui/Spinner";
 import type { DashboardStats } from "@/types";
 
-function Modal({ title, icon, iconBg, children, onClose }: {
-    title: string; icon: string; iconBg: string; children: React.ReactNode; onClose: () => void;
+function Modal({ title, icon, children, onClose }: {
+    title: string; icon: React.ReactNode; children: React.ReactNode; onClose: () => void;
 }) {
     return (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4" style={{ background: "rgba(0,0,0,0.7)" }} onClick={onClose}>
             <div className="w-full max-w-md rounded-2xl p-6 shadow-2xl" style={{ background: "var(--bg-1)", border: "1px solid var(--border)" }} onClick={(e) => e.stopPropagation()}>
                 <div className="flex items-center gap-3 mb-5">
-                    <div className="w-9 h-9 rounded-xl flex items-center justify-center text-white text-sm font-bold" style={{ background: iconBg }}>{icon}</div>
+                    <div className="w-9 h-9 rounded-xl flex items-center justify-center shrink-0" style={{ background: "#DB4035" }}>{icon}</div>
                     <p className="font-semibold text-sm" style={{ color: "var(--text)" }}>{title}</p>
                     <button onClick={onClose} className="ml-auto w-7 h-7 flex items-center justify-center rounded-lg text-sm transition-colors" style={{ color: "var(--text-3)", background: "var(--bg-3)" }}>&times;</button>
                 </div>
@@ -114,7 +114,16 @@ export default function DashboardPage() {
 
     if (status === "loading") return <div className="flex items-center justify-center h-full"><Spinner className="w-5 h-5" /></div>;
 
-    const connected = (p: string) => stats?.integrations.some((i) => i.provider === p) ?? false;
+    const connected = (p: string) => {
+        if (stats?.integrations.some((i) => i.provider === p)) return true;
+        // fallback: check session for known keys
+        const sessionKeyMap: Record<string, string> = {
+            google: "googleAccessToken", slack: "hasSlack", zoom: "hasZoom",
+            github: "hasGithub", todoist: "hasTodoist",
+        };
+        const key = sessionKeyMap[p];
+        return key ? !!(session as Record<string, unknown> | null)?.[key] : false;
+    };
     const teamName = (p: string) => stats?.integrations.find((i) => i.provider === p)?.teamName;
     const totalConnected = ["google", "slack", "zoom", "github", "todoist"].filter(connected).length;
     const hour = new Date().getHours();
@@ -125,7 +134,7 @@ export default function DashboardPage() {
             <DashboardHeader />
 
             {showTodoistModal && (
-                <Modal title="Connect Todoist" icon="checkmark" iconBg="#DB4035" onClose={() => setShowTodoistModal(false)}>
+                <Modal title="Connect Todoist" icon={<svg viewBox="0 0 24 24" className="w-5 h-5"><path d="M6 8.5l2.5 2.5L14 5M6 12.5l2.5 2.5L14 9M6 16.5l2.5 2.5L14 13" stroke="#fff" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" fill="none"/></svg>} onClose={() => setShowTodoistModal(false)}>
                     <p className="text-xs mb-3" style={{ color: "var(--text-2)" }}>
                         Get your token at{" "}
                         <a href="https://app.todoist.com/app/settings/integrations/developer" target="_blank" className="underline" style={{ color: "var(--accent)" }}>Todoist Settings</a>
@@ -204,7 +213,7 @@ export default function DashboardPage() {
                                                     <p className="text-xs truncate" style={{ color: "var(--text-3)" }}>{detail}</p>
                                                 </div>
                                                 <div className="flex items-center gap-3 shrink-0">
-                                                    <span className="w-2 h-2 rounded-full" style={{ background: isConnected ? "var(--success)" : "var(--border)" }} />
+                                                    <span className="w-2.5 h-2.5 rounded-full flex-shrink-0" style={{ background: isConnected ? "#22c55e" : "rgba(255,255,255,0.12)", boxShadow: isConnected ? "0 0 6px rgba(34,197,94,0.5)" : "none" }} />
                                                     {isConnected ? (
                                                         handleDisconnect && (
                                                             <button onClick={handleDisconnect} className="text-xs" style={{ color: "var(--text-3)" }}>Disconnect</button>
