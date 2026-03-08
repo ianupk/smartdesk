@@ -1,135 +1,141 @@
+/**
+ * Slack Integration Handler
+ *
+ * Architecture decision: Bot Token approach (not OAuth)
+ *
+ * WHY NOT OAuth for localhost:
+ *   - Slack OAuth requires HTTPS redirect URIs
+ *   - localhost is HTTP → Slack rejects it completely
+ *   - Even ngrok works but adds setup friction
+ *
+ * HOW THIS WORKS:
+ *   1. User creates a Slack App and gets a Bot Token (xoxb-...)
+ *   2. They add SLACK_BOT_TOKEN to .env.local
+ *   3. Click "Connect Slack" → this route validates the token via auth.test
+ *   4. Token is saved to Integration table tied to the user
+ *   5. Session callback reads it → attaches to every request
+ *   6. Slack tools receive it via LangGraph config.configurable
+ *
+ * For production with real OAuth, see the /api/slack-oauth route (separate file).
+ */
+
 import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 
 export async function GET(req: NextRequest) {
-    const session = await getServerSession(authOptions);
-    if (!session?.userId) {
-        return NextResponse.redirect(new URL("/login", req.url));
+  const session = await getServerSession(authOptions);
+  if (!session?.userId) {
+    return NextResponse.redirect(new URL("/login", req.url));
+  }
+
+  const { searchParams } = new URL(req.url);
+  const action = searchParams.get("action");
+
+  // ── CONNECT: validate env token and save to DB ──────────────────────────
+  if (action === "connect") {
+    const token = process.env.SLACK_BOT_TOKEN;
+
+    if (!token) {
+      return NextResponse.redirect(
+        new URL(
+          "/dashboard?slack_error=missing_token",
+          req.url,
+        ),
+      );
     }
 
-    const { searchParams } = new URL(req.url);
-    const code = searchParams.get("code");
-
-    if (!code && process.env.SLACK_BOT_TOKEN) {
-        try {
-            const testRes = await fetch("https://slack.com/api/auth.test", {
-                headers: {
-                    Authorization: `Bearer ${process.env.SLACK_BOT_TOKEN}`,
-                },
-            });
-            const testData = await testRes.json();
-
-            if (!testData.ok) {
-                console.error(
-                    "[slack-connect] Token test failed:",
-                    testData.error,
-                );
-                return NextResponse.redirect(
-                    new URL("/dashboard?error=slack_token_invalid", req.url),
-                );
-            }
-
-            await prisma.integration.upsert({
-                where: {
-                    userId_provider: {
-                        userId: session.userId,
-                        provider: "slack",
-                    },
-                },
-                create: {
-                    userId: session.userId,
-                    provider: "slack",
-                    accessToken: process.env.SLACK_BOT_TOKEN,
-                    teamId: testData.team_id,
-                    teamName: testData.team,
-                },
-                update: {
-                    accessToken: process.env.SLACK_BOT_TOKEN,
-                    teamId: testData.team_id,
-                    teamName: testData.team,
-                },
-            });
-
-            return NextResponse.redirect(
-                new URL("/dashboard?connected=slack", req.url),
-            );
-        } catch (err) {
-            console.error("[slack-connect] dev mode error:", err);
-            return NextResponse.redirect(
-                new URL("/dashboard?error=slack_failed", req.url),
-            );
-        }
-    }
-
-    if (!code) {
-        if (!process.env.SLACK_CLIENT_ID) {
-            return NextResponse.redirect(
-                new URL("/dashboard?error=slack_not_configured", req.url),
-            );
-        }
-        const slackAuthUrl = new URL("https://slack.com/oauth/v2/authorize");
-        slackAuthUrl.searchParams.set("client_id", process.env.SLACK_CLIENT_ID);
-        slackAuthUrl.searchParams.set(
-            "scope",
-            "chat:write,channels:read,channels:history,users:read",
-        );
-        slackAuthUrl.searchParams.set(
-            "redirect_uri",
-            `${process.env.NEXTAUTH_URL}/api/slack-connect`,
-        );
-        slackAuthUrl.searchParams.set("state", session.userId);
-        return NextResponse.redirect(slackAuthUrl.toString());
-    }
-
-    const state = searchParams.get("state");
-    if (state !== session.userId) {
-        return NextResponse.redirect(
-            new URL("/dashboard?error=slack_state", req.url),
-        );
+    if (!token.startsWith("xoxb-") && !token.startsWith("xoxp-")) {
+      return NextResponse.redirect(
+        new URL(
+          "/dashboard?slack_error=invalid_token_format",
+          req.url,
+        ),
+      );
     }
 
     try {
-        const tokenRes = await fetch("https://slack.com/api/oauth.v2.access", {
-            method: "POST",
-            headers: { "Content-Type": "application/x-www-form-urlencoded" },
-            body: new URLSearchParams({
-                client_id: process.env.SLACK_CLIENT_ID!,
-                client_secret: process.env.SLACK_CLIENT_SECRET!,
-                code,
-                redirect_uri: `${process.env.NEXTAUTH_URL}/api/slack-connect`,
-            }),
-        });
+      // Validate token against Slack API
+      const testRes = await fetch("https://slack.com/api/auth.test", {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${token}`,
+          "Content-Type": "application/json",
+        },
+      });
 
-        const data = await tokenRes.json();
-        if (!data.ok) throw new Error(data.error);
+      if (!testRes.ok) {
+        throw new Error(`HTTP ${testRes.status} from Slack API`);
+      }
 
-        await prisma.integration.upsert({
-            where: {
-                userId_provider: { userId: session.userId, provider: "slack" },
-            },
-            create: {
-                userId: session.userId,
-                provider: "slack",
-                accessToken: data.access_token,
-                teamId: data.team?.id,
-                teamName: data.team?.name,
-            },
-            update: {
-                accessToken: data.access_token,
-                teamId: data.team?.id,
-                teamName: data.team?.name,
-            },
-        });
+      const testData = await testRes.json();
 
+      if (!testData.ok) {
+        const errCode = testData.error ?? "unknown_error";
         return NextResponse.redirect(
-            new URL("/dashboard?connected=slack", req.url),
+          new URL(
+            `/dashboard?slack_error=${encodeURIComponent(errCode)}`,
+            req.url,
+          ),
         );
+      }
+
+      // Save token to Integration table — session callback will pick it up
+      await prisma.integration.upsert({
+        where: {
+          userId_provider: {
+            userId: session.userId,
+            provider: "slack",
+          },
+        },
+        create: {
+          userId: session.userId,
+          provider: "slack",
+          accessToken: token,
+          teamId: testData.team_id ?? null,
+          teamName: testData.team ?? "Slack Workspace",
+        },
+        update: {
+          accessToken: token,
+          teamId: testData.team_id ?? null,
+          teamName: testData.team ?? "Slack Workspace",
+        },
+      });
+
+      console.log("[slack-connect] Saved token for workspace:", testData.team);
+
+      return NextResponse.redirect(
+        new URL(
+          `/dashboard?slack_success=1&team=${encodeURIComponent(testData.team ?? "Slack")}`,
+          req.url,
+        ),
+      );
     } catch (err) {
-        console.error("[slack-connect] OAuth error:", err);
-        return NextResponse.redirect(
-            new URL("/dashboard?error=slack_failed", req.url),
-        );
+      console.error("[slack-connect] Error:", err);
+      return NextResponse.redirect(
+        new URL(
+          `/dashboard?slack_error=${encodeURIComponent((err as Error).message)}`,
+          req.url,
+        ),
+      );
     }
+  }
+
+  // ── DISCONNECT ──────────────────────────────────────────────────────────
+  if (action === "disconnect") {
+    try {
+      await prisma.integration.deleteMany({
+        where: { userId: session.userId, provider: "slack" },
+      });
+      return NextResponse.redirect(
+        new URL("/dashboard?slack_success=disconnected", req.url),
+      );
+    } catch (err) {
+      console.error("[slack-connect] Disconnect error:", err);
+      return NextResponse.redirect(new URL("/dashboard", req.url));
+    }
+  }
+
+  return NextResponse.redirect(new URL("/dashboard", req.url));
 }

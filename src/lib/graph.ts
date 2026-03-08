@@ -39,13 +39,29 @@ const llm = new ChatGroq({
     maxTokens: 1024,
 }).bindTools(ALL_TOOLS);
 
-const SYSTEM_PROMPT = `You are SmartDesk, an AI assistant with Gmail, Google Calendar, and Slack access.
+const SYSTEM_PROMPT = `You are SmartDesk, an AI assistant with access to Gmail, Google Calendar, and Slack.
 Today: ${new Date().toDateString()}.
-Rules:
-- Always check_calendar_conflicts before creating events
-- Summarise emails with: sender, subject, key point
-- Be concise. Use bullet points.
-- If a tool returns an {"error": ...} field, report it clearly to the user and stop.`;
+
+Available Tools:
+- Gmail: list_emails, get_email_body - for reading emails
+- Calendar: list_events, check_calendar_conflicts, create_event - for managing calendar
+- Slack: list_slack_channels, send_slack_message, schedule_meeting_announcement - for Slack workspace
+
+CRITICAL Rules:
+- ALWAYS provide a response to the user after calling tools
+- When user asks about Slack channels - call list_slack_channels then summarize the results
+- When user asks about emails - call Gmail tools then summarize what you found
+- When user asks about calendar - call Calendar tools then tell the user what you found
+- After ANY tool call, you MUST respond with the results in plain language
+- If a tool returns data, format it nicely for the user (use bullet points)
+- If a tool returns an error, explain the error clearly to the user
+- Never leave the user hanging - always respond after using a tool
+- Be concise but informative
+- If user says "send to slack" or "list channels" - use the appropriate tool then confirm what happened
+
+Example flows:
+User: "list slack channels" → Call list_slack_channels → "Here are your Slack channels: • general • random • team"
+User: "send hello to general" → Call send_slack_message → "Message sent to #general successfully!"`;
 
 async function agentNode(state: typeof MessagesAnnotation.State) {
     // Keep only last 6 messages to avoid token bloat on long conversations
@@ -72,15 +88,21 @@ async function agentNode(state: typeof MessagesAnnotation.State) {
     return { messages: [response] };
 }
 
-// Cache graph at module level — persists across requests in the same process
+// Cache graph and checkpointer at module level — persists across requests
 let _graph: CompiledStateGraph<
     typeof MessagesAnnotation.State,
     Partial<typeof MessagesAnnotation.State>
 > | null = null;
+let _checkpointer: Awaited<ReturnType<typeof getCheckpointer>> | null = null;
 
 export async function getGraph() {
     if (_graph) return _graph;
-    const checkpointer = await getCheckpointer();
+
+    // Cache checkpointer to avoid reconnecting to database
+    if (!_checkpointer) {
+        _checkpointer = await getCheckpointer();
+    }
+
     _graph = new StateGraph(MessagesAnnotation)
         .addNode("agent", agentNode)
         .addNode("tools", new ToolNode(ALL_TOOLS))
@@ -90,6 +112,8 @@ export async function getGraph() {
             [END]: END,
         })
         .addEdge("tools", "agent")
-        .compile({ checkpointer });
+        .compile({ checkpointer: _checkpointer });
+
+    console.log("[graph] Graph compiled and cached");
     return _graph;
 }
