@@ -20,16 +20,43 @@ import {
     sendMessageTool,
     announceMeetingTool,
 } from "./tools/slack";
+import {
+    listMeetingsTool,
+    createMeetingTool,
+    getMeetingTool,
+    deleteMeetingTool,
+} from "./tools/zoom";
+import {
+    searchNotionTool,
+    getNotionPageTool,
+    createNotionPageTool,
+    appendToNotionPageTool,
+    listNotionDatabasesTool,
+} from "./tools/notion";
 
 const ALL_TOOLS = [
+    // Gmail
     listEmailsTool,
     getEmailBodyTool,
+    // Google Calendar
     listEventsTool,
     checkConflictsTool,
     createEventTool,
+    // Slack
     listChannelsTool,
     sendMessageTool,
     announceMeetingTool,
+    // Zoom
+    listMeetingsTool,
+    createMeetingTool,
+    getMeetingTool,
+    deleteMeetingTool,
+    // Notion
+    searchNotionTool,
+    getNotionPageTool,
+    createNotionPageTool,
+    appendToNotionPageTool,
+    listNotionDatabasesTool,
 ];
 
 const llm = new ChatGroq({
@@ -39,32 +66,34 @@ const llm = new ChatGroq({
     maxTokens: 1024,
 }).bindTools(ALL_TOOLS);
 
-const SYSTEM_PROMPT = `You are SmartDesk, an AI assistant with access to Gmail, Google Calendar, and Slack.
+const SYSTEM_PROMPT = `You are SmartDesk, an AI assistant with access to Gmail, Google Calendar, Slack, Zoom, and Notion.
 Today: ${new Date().toDateString()}.
 
 Available Tools:
-- Gmail: list_emails, get_email_body - for reading emails
-- Calendar: list_events, check_calendar_conflicts, create_event - for managing calendar
-- Slack: list_slack_channels, send_slack_message, schedule_meeting_announcement - for Slack workspace
+- Gmail: list_emails, get_email_body — read and summarise emails
+- Calendar: list_calendar_events, check_calendar_conflicts, create_calendar_event — manage schedule
+- Slack: list_slack_channels, send_slack_message, schedule_meeting_announcement — send messages
+- Zoom: list_zoom_meetings, create_zoom_meeting, get_zoom_meeting, delete_zoom_meeting — manage video meetings
+- Notion: search_notion, get_notion_page, create_notion_page, append_to_notion_page, list_notion_databases — manage notes and docs
 
 CRITICAL Rules:
-- ALWAYS provide a response to the user after calling tools
-- When user asks about Slack channels - call list_slack_channels then summarize the results
-- When user asks about emails - call Gmail tools then summarize what you found
-- When user asks about calendar - call Calendar tools then tell the user what you found
-- After ANY tool call, you MUST respond with the results in plain language
-- If a tool returns data, format it nicely for the user (use bullet points)
-- If a tool returns an error, explain the error clearly to the user
-- Never leave the user hanging - always respond after using a tool
+- ALWAYS provide a plain-language response AFTER calling tools — never leave the user with no reply
+- After any tool returns data, summarise the results clearly (bullet points are great)
+- After create/send/delete actions, confirm what was done
+- If a tool returns an error, explain clearly and suggest next steps
+- Never call a tool you have no token for — if the user hasn't connected an integration, tell them to go to Dashboard → Integrations
+- For Zoom meetings: always call list_zoom_meetings before creating to check for conflicts when relevant
+- For Notion: call search_notion first when user wants to read or update an existing page
 - Be concise but informative
-- If user says "send to slack" or "list channels" - use the appropriate tool then confirm what happened
 
 Example flows:
-User: "list slack channels" → Call list_slack_channels → "Here are your Slack channels: • general • random • team"
-User: "send hello to general" → Call send_slack_message → "Message sent to #general successfully!"`;
+"show my zoom meetings" → list_zoom_meetings → "You have 3 upcoming meetings: ..."
+"create zoom call with team tomorrow 2pm" → create_zoom_meeting (with interrupt) → "Meeting created! Join link: ..."
+"find my Q3 notes in Notion" → search_notion → get_notion_page → "Here's what I found: ..."
+"add meeting notes to Notion" → create_notion_page → "Notes saved to Notion: ..."
+"send slack message to general" → list_slack_channels → send_slack_message → "Sent!"`;
 
 async function agentNode(state: typeof MessagesAnnotation.State) {
-    // Keep only last 6 messages to avoid token bloat on long conversations
     const trimmed = await trimMessages(state.messages, {
         maxTokens: 3000,
         strategy: "last",
@@ -88,7 +117,6 @@ async function agentNode(state: typeof MessagesAnnotation.State) {
     return { messages: [response] };
 }
 
-// Cache graph and checkpointer at module level — persists across requests
 let _graph: CompiledStateGraph<
     typeof MessagesAnnotation.State,
     Partial<typeof MessagesAnnotation.State>
@@ -98,7 +126,6 @@ let _checkpointer: Awaited<ReturnType<typeof getCheckpointer>> | null = null;
 export async function getGraph() {
     if (_graph) return _graph;
 
-    // Cache checkpointer to avoid reconnecting to database
     if (!_checkpointer) {
         _checkpointer = await getCheckpointer();
     }
@@ -114,6 +141,8 @@ export async function getGraph() {
         .addEdge("tools", "agent")
         .compile({ checkpointer: _checkpointer });
 
-    console.log("[graph] Graph compiled and cached");
+    console.log(
+        "[graph] Graph compiled with Gmail, Calendar, Slack, Zoom, Notion tools",
+    );
     return _graph;
 }
