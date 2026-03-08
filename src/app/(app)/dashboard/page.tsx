@@ -4,521 +4,55 @@ import { useSession, signIn } from "next-auth/react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { DashboardHeader } from "@/components/dashboard/DashboardHeader";
-import { StatsCard } from "@/components/dashboard/StatsCard";
-import { Button } from "@/components/ui/Button";
 import { Spinner } from "@/components/ui/Spinner";
 import type { DashboardStats } from "@/types";
 
-const ERRORS: Record<string, Record<string, string>> = {
-    slack: {
-        missing_token:
-            "SLACK_BOT_TOKEN not set in .env.local — add it and restart Docker.",
-        invalid_token_format:
-            "Token must start with xoxb-. Check SLACK_BOT_TOKEN.",
-        invalid_auth:
-            "Invalid token. Copy the correct Bot Token from api.slack.com.",
-        token_revoked:
-            "Token revoked. Re-install the Slack app to get a new token.",
-        missing_scope:
-            "Missing scopes. Add chat:write, channels:read, groups:read.",
-    },
-    zoom: {
-        missing_config:
-            "ZOOM_CLIENT_ID / ZOOM_CLIENT_SECRET not set in .env.local.",
-        token_exchange_failed:
-            "Token exchange failed. Check your Zoom app credentials.",
-        access_denied:
-            "Zoom access denied. Please allow the permissions requested.",
-    },
-    github: {
-        missing_config:
-            "GITHUB_CLIENT_ID / GITHUB_CLIENT_SECRET not set in .env.local.",
-        token_exchange_failed:
-            "Token exchange failed. Check your GitHub OAuth app credentials.",
-        access_denied: "GitHub access denied.",
-    },
-    todoist: {
-        missing_config:
-            "TODOIST_CLIENT_ID / TODOIST_CLIENT_SECRET not set in .env.local.",
-        token_exchange_failed:
-            "Token exchange failed. Check your Todoist app credentials.",
-        access_denied: "Todoist access denied.",
-    },
-};
-
-function NotionTokenModal({
-    onClose,
-    onConnected,
-}: {
-    onClose: () => void;
-    onConnected: (ws: string) => void;
+function Modal({ title, icon, iconBg, children, onClose }: {
+    title: string; icon: string; iconBg: string; children: React.ReactNode; onClose: () => void;
 }) {
-    const [token, setToken] = useState("");
-    const [loading, setLoading] = useState(false);
-    const [error, setError] = useState("");
-
-    const handleConnect = async () => {
-        if (!token.trim()) {
-            setError("Please paste your token.");
-            return;
-        }
-        setLoading(true);
-        setError("");
-        try {
-            const res = await fetch("/api/notion-connect", {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({
-                    action: "connect",
-                    token: token.trim(),
-                }),
-            });
-            const data = await res.json();
-            if (!res.ok || data.error)
-                setError(data.error ?? "Connection failed.");
-            else onConnected(data.workspaceName ?? "Notion Workspace");
-        } catch {
-            setError("Network error. Please try again.");
-        } finally {
-            setLoading(false);
-        }
-    };
-
     return (
-        <div
-            className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4"
-            onClick={onClose}
-        >
-            <div
-                className="bg-surface-1 border border-border rounded-xl w-full max-w-md p-6 shadow-2xl"
-                onClick={(e) => e.stopPropagation()}
-            >
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4" style={{ background: "rgba(0,0,0,0.7)" }} onClick={onClose}>
+            <div className="w-full max-w-md rounded-2xl p-6 shadow-2xl" style={{ background: "var(--bg-1)", border: "1px solid var(--border)" }} onClick={(e) => e.stopPropagation()}>
                 <div className="flex items-center gap-3 mb-5">
-                    <div className="w-9 h-9 rounded-lg bg-[#191919] flex items-center justify-center text-white font-bold text-sm">
-                        N
-                    </div>
-                    <div>
-                        <h2 className="font-semibold text-ink text-sm">
-                            Connect Notion
-                        </h2>
-                        <p className="text-xs text-ink-muted">
-                            Paste your Internal Integration Secret
-                        </p>
-                    </div>
-                    <button
-                        onClick={onClose}
-                        className="ml-auto text-ink-muted hover:text-ink text-xl leading-none"
-                    >
-                        ×
-                    </button>
+                    <div className="w-9 h-9 rounded-xl flex items-center justify-center text-white text-sm font-bold" style={{ background: iconBg }}>{icon}</div>
+                    <p className="font-semibold text-sm" style={{ color: "var(--text)" }}>{title}</p>
+                    <button onClick={onClose} className="ml-auto w-7 h-7 flex items-center justify-center rounded-lg text-sm transition-colors" style={{ color: "var(--text-3)", background: "var(--bg-3)" }}>&times;</button>
                 </div>
-                <div className="bg-surface-2 rounded-lg p-4 mb-4">
-                    <p className="text-xs font-semibold text-ink mb-2">
-                        How to get your token:
-                    </p>
-                    <ol className="space-y-1.5 text-xs text-ink-dim list-decimal list-inside leading-relaxed">
-                        <li>
-                            Go to{" "}
-                            <a
-                                href="https://www.notion.so/profile/integrations"
-                                target="_blank"
-                                className="text-accent underline"
-                            >
-                                notion.so/profile/integrations
-                            </a>
-                        </li>
-                        <li>
-                            New integration → name it (e.g. SmartDesk) → Submit
-                        </li>
-                        <li>
-                            Open the <strong>Secrets</strong> tab → copy the{" "}
-                            <strong>Internal Integration Secret</strong>
-                        </li>
-                        <li>Paste below → Connect</li>
-                        <li className="text-amber-600 font-medium">
-                            After connecting: In Notion open each page → ··· →
-                            Add connections → select your integration
-                        </li>
-                    </ol>
-                </div>
-                <div className="space-y-3">
-                    <input
-                        type="password"
-                        value={token}
-                        onChange={(e) => {
-                            setToken(e.target.value);
-                            setError("");
-                        }}
-                        onKeyDown={(e) => e.key === "Enter" && handleConnect()}
-                        placeholder="secret_xxxxxxxxxxxxxxxx"
-                        autoFocus
-                        className="w-full bg-surface-3 border border-border rounded-lg px-3 py-2.5 text-sm text-ink font-mono placeholder:text-ink-muted focus:outline-none focus:border-accent"
-                    />
-                    {error && (
-                        <p className="text-xs text-danger bg-danger/10 border border-danger/20 rounded-lg px-3 py-2">
-                            {error}
-                        </p>
-                    )}
-                    <div className="flex gap-2">
-                        <Button
-                            variant="secondary"
-                            size="sm"
-                            onClick={onClose}
-                            className="flex-1"
-                        >
-                            Cancel
-                        </Button>
-                        <Button
-                            size="sm"
-                            onClick={handleConnect}
-                            loading={loading}
-                            className="flex-1"
-                        >
-                            Connect Notion
-                        </Button>
-                    </div>
-                </div>
+                {children}
             </div>
         </div>
     );
 }
 
-function TodoistTokenModal({
-    onClose,
-    onConnected,
-}: {
-    onClose: () => void;
-    onConnected: (name: string) => void;
-}) {
-    const [token, setToken] = useState("");
-    const [loading, setLoading] = useState(false);
-    const [error, setError] = useState("");
-
-    const handleConnect = async () => {
-        if (!token.trim()) {
-            setError("Please paste your API token.");
-            return;
-        }
-        setLoading(true);
-        setError("");
-        try {
-            const res = await fetch("/api/todoist-connect", {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({
-                    action: "connect",
-                    token: token.trim(),
-                }),
-            });
-            const data = await res.json();
-            if (!res.ok || data.error)
-                setError(data.error ?? "Connection failed.");
-            else onConnected(data.fullName ?? "Todoist");
-        } catch {
-            setError("Network error. Please try again.");
-        } finally {
-            setLoading(false);
-        }
-    };
-
-    return (
-        <div
-            className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4"
-            onClick={onClose}
-        >
-            <div
-                className="bg-surface-1 border border-border rounded-xl w-full max-w-md p-6 shadow-2xl"
-                onClick={(e) => e.stopPropagation()}
-            >
-                <div className="flex items-center gap-3 mb-5">
-                    <div className="w-9 h-9 rounded-lg bg-[#DB4035] flex items-center justify-center text-white font-bold text-sm">
-                        ✓
-                    </div>
-                    <div>
-                        <h2 className="font-semibold text-ink text-sm">
-                            Connect Todoist
-                        </h2>
-                        <p className="text-xs text-ink-muted">
-                            Paste your Personal API Token
-                        </p>
-                    </div>
-                    <button
-                        onClick={onClose}
-                        className="ml-auto text-ink-muted hover:text-ink text-xl leading-none"
-                    >
-                        ×
-                    </button>
-                </div>
-                <div className="bg-surface-2 rounded-lg p-4 mb-4">
-                    <p className="text-xs font-semibold text-ink mb-2">
-                        How to get your token (30 seconds):
-                    </p>
-                    <ol className="space-y-1.5 text-xs text-ink-dim list-decimal list-inside leading-relaxed">
-                        <li>
-                            Open{" "}
-                            <a
-                                href="https://app.todoist.com/app/settings/integrations/developer"
-                                target="_blank"
-                                className="text-accent underline"
-                            >
-                                Todoist → Settings → Integrations → Developer
-                            </a>
-                        </li>
-                        <li>
-                            Scroll down to <strong>API token</strong> — copy it
-                        </li>
-                        <li>Paste below and click Connect</li>
-                    </ol>
-                </div>
-                <div className="space-y-3">
-                    <input
-                        type="password"
-                        value={token}
-                        onChange={(e) => {
-                            setToken(e.target.value);
-                            setError("");
-                        }}
-                        onKeyDown={(e) => e.key === "Enter" && handleConnect()}
-                        placeholder="Your 40-character Todoist API token"
-                        autoFocus
-                        className="w-full bg-surface-3 border border-border rounded-lg px-3 py-2.5 text-sm text-ink font-mono placeholder:text-ink-muted focus:outline-none focus:border-accent"
-                    />
-                    {error && (
-                        <p className="text-xs text-danger bg-danger/10 border border-danger/20 rounded-lg px-3 py-2">
-                            {error}
-                        </p>
-                    )}
-                    <div className="flex gap-2">
-                        <Button
-                            variant="secondary"
-                            size="sm"
-                            onClick={onClose}
-                            className="flex-1"
-                        >
-                            Cancel
-                        </Button>
-                        <Button
-                            size="sm"
-                            onClick={handleConnect}
-                            loading={loading}
-                            className="flex-1"
-                        >
-                            Connect Todoist
-                        </Button>
-                    </div>
-                </div>
-            </div>
-        </div>
-    );
-}
-
-function IntCard({
-    icon,
-    iconBg,
-    iconText,
-    name,
-    subtitle,
-    capabilities,
-    connected,
-    detail,
-    onConnect,
-    onDisconnect,
-    setupGuide,
-}: {
-    icon?: string;
-    iconBg: string;
-    iconText?: string;
-    name: string;
-    subtitle: string;
-    capabilities: string[];
-    connected: boolean;
-    detail?: string;
-    onConnect: () => void;
-    onDisconnect?: () => void;
-    setupGuide?: React.ReactNode;
-}) {
-    const [showGuide, setShowGuide] = useState(false);
-    return (
-        <div
-            className={`card p-5 ${connected ? "border-success/20 bg-success/5" : ""}`}
-        >
-            <div className="flex items-start gap-4">
-                <div
-                    className="w-11 h-11 rounded-xl flex items-center justify-center shrink-0 text-white font-bold text-base"
-                    style={{ backgroundColor: iconBg }}
-                >
-                    {icon ?? iconText}
-                </div>
-                <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-2 flex-wrap">
-                        <span className="text-sm font-semibold text-ink">
-                            {name}
-                        </span>
-                        <span className="text-xs text-ink-muted">
-                            {subtitle}
-                        </span>
-                        <span
-                            className={`inline-flex items-center gap-1 text-[0.65rem] font-mono px-1.5 py-0.5 rounded border ${connected ? "bg-success/10 border-success/30 text-success" : "bg-surface-3 border-border text-ink-muted"}`}
-                        >
-                            <span
-                                className={`w-1.5 h-1.5 rounded-full ${connected ? "bg-success" : "bg-ink-muted"}`}
-                            />
-                            {connected ? "Connected" : "Not connected"}
-                        </span>
-                    </div>
-                    {detail && (
-                        <p className="text-xs text-ink-dim mt-0.5">{detail}</p>
-                    )}
-                    <div className="flex flex-wrap gap-1.5 mt-2">
-                        {capabilities.map((c) => (
-                            <span
-                                key={c}
-                                className="text-[0.65rem] bg-surface-3 border border-border text-ink-muted px-1.5 py-0.5 rounded"
-                            >
-                                {c}
-                            </span>
-                        ))}
-                    </div>
-                </div>
-                <div className="flex items-center gap-2 shrink-0">
-                    {setupGuide && !connected && (
-                        <button
-                            onClick={() => setShowGuide(!showGuide)}
-                            className="text-xs text-accent hover:underline"
-                        >
-                            {showGuide ? "Hide" : "Setup guide"}
-                        </button>
-                    )}
-                    {connected ? (
-                        <Button
-                            variant="secondary"
-                            size="sm"
-                            onClick={onDisconnect}
-                        >
-                            Disconnect
-                        </Button>
-                    ) : (
-                        <Button size="sm" onClick={onConnect}>
-                            Connect
-                        </Button>
-                    )}
-                </div>
-            </div>
-            {showGuide && setupGuide && !connected && (
-                <div className="mt-4 pt-4 border-t border-border">
-                    {setupGuide}
-                </div>
-            )}
-        </div>
-    );
-}
-
-function TavilyCard({ configured }: { configured: boolean }) {
-    return (
-        <div
-            className={`card p-5 ${configured ? "border-success/20 bg-success/5" : "border-amber-500/20 bg-amber-500/5"}`}
-        >
-            <div className="flex items-start gap-4">
-                <div className="w-11 h-11 rounded-xl flex items-center justify-center shrink-0 text-white font-bold text-base bg-[#0066FF]">
-                    🔍
-                </div>
-                <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-2 flex-wrap">
-                        <span className="text-sm font-semibold text-ink">
-                            Tavily Web Search
-                        </span>
-                        <span className="text-xs text-ink-muted">
-                            Real-time web + news
-                        </span>
-                        <span
-                            className={`inline-flex items-center gap-1 text-[0.65rem] font-mono px-1.5 py-0.5 rounded border ${configured ? "bg-success/10 border-success/30 text-success" : "bg-amber-500/10 border-amber-500/30 text-amber-600"}`}
-                        >
-                            <span
-                                className={`w-1.5 h-1.5 rounded-full ${configured ? "bg-success" : "bg-amber-500"}`}
-                            />
-                            {configured ? "Active" : "Needs API key"}
-                        </span>
-                    </div>
-                    <p className="text-xs text-ink-dim mt-0.5">
-                        {configured
-                            ? "Web search active — ask anything current"
-                            : "Add TAVILY_API_KEY to .env.local (free at app.tavily.com)"}
-                    </p>
-                    <div className="flex flex-wrap gap-1.5 mt-2">
-                        {[
-                            "Search the web",
-                            "Latest news",
-                            "Research any topic",
-                            "No OAuth needed",
-                        ].map((c) => (
-                            <span
-                                key={c}
-                                className="text-[0.65rem] bg-surface-3 border border-border text-ink-muted px-1.5 py-0.5 rounded"
-                            >
-                                {c}
-                            </span>
-                        ))}
-                    </div>
-                </div>
-                {!configured && (
-                    <a
-                        href="https://app.tavily.com"
-                        target="_blank"
-                        className="text-xs text-accent hover:underline shrink-0 mt-1"
-                    >
-                        Get free key →
-                    </a>
-                )}
-            </div>
-            {!configured && (
-                <div className="mt-4 pt-4 border-t border-border">
-                    <ol className="space-y-1 text-xs text-ink-dim list-decimal list-inside">
-                        <li>
-                            Go to{" "}
-                            <a
-                                href="https://app.tavily.com"
-                                target="_blank"
-                                className="text-accent underline"
-                            >
-                                app.tavily.com
-                            </a>{" "}
-                            → sign up (free) → copy your API key
-                        </li>
-                        <li>
-                            Add to .env.local:{" "}
-                            <code className="font-mono bg-surface-1 px-1 rounded">
-                                TAVILY_API_KEY=tvly-...
-                            </code>
-                        </li>
-                        <li>
-                            Restart Docker — web search will work immediately,
-                            no dashboard connection needed
-                        </li>
-                    </ol>
-                </div>
-            )}
-        </div>
-    );
-}
-
-function Toast({
-    type,
-    children,
-}: {
-    type: "success" | "error" | "info";
-    children: React.ReactNode;
-}) {
-    const s = {
-        success: "bg-success/10 border-success/30 text-success",
-        error: "bg-danger/10 border-danger/30 text-danger",
-        info: "bg-surface-2 border-border text-ink-muted",
-    }[type];
-    return (
-        <div className={`px-4 py-3 rounded-lg border text-sm mb-4 ${s}`}>
-            {children}
-        </div>
-    );
-}
+const INT_DEFS = [
+    {
+        id: "google", name: "Google", sub: "Gmail & Calendar", sessionKey: "googleAccessToken",
+        logo: <svg viewBox="0 0 24 24" className="w-5 h-5"><path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4"/><path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853"/><path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l3.66-2.84z" fill="#FBBC05"/><path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335"/></svg>,
+        onConnect: () => signIn("google", { callbackUrl: "/dashboard" }),
+    },
+    {
+        id: "slack", name: "Slack", sub: "Team messaging", sessionKey: "hasSlack",
+        logo: <svg viewBox="0 0 24 24" className="w-5 h-5"><path d="M5.042 15.165a2.528 2.528 0 0 1-2.52 2.523A2.528 2.528 0 0 1 0 15.165a2.527 2.527 0 0 1 2.522-2.52h2.52v2.52z" fill="#E01E5A"/><path d="M6.313 15.165a2.527 2.527 0 0 1 2.521-2.52 2.527 2.527 0 0 1 2.521 2.52v6.313A2.528 2.528 0 0 1 8.834 24a2.528 2.528 0 0 1-2.521-2.522v-6.313z" fill="#E01E5A"/><path d="M8.834 5.042a2.528 2.528 0 0 1-2.521-2.52A2.528 2.528 0 0 1 8.834 0a2.528 2.528 0 0 1 2.521 2.522v2.52H8.834z" fill="#36C5F0"/><path d="M8.834 6.313a2.528 2.528 0 0 1 2.521 2.521 2.528 2.528 0 0 1-2.521 2.521H2.522A2.528 2.528 0 0 1 0 8.834a2.528 2.528 0 0 1 2.522-2.521h6.312z" fill="#36C5F0"/><path d="M18.956 8.834a2.528 2.528 0 0 1 2.522-2.521A2.528 2.528 0 0 1 24 8.834a2.528 2.528 0 0 1-2.522 2.521h-2.522V8.834z" fill="#2EB67D"/><path d="M17.688 8.834a2.528 2.528 0 0 1-2.523 2.521 2.527 2.527 0 0 1-2.52-2.521V2.522A2.527 2.527 0 0 1 15.165 0a2.528 2.528 0 0 1 2.523 2.522v6.312z" fill="#2EB67D"/><path d="M15.165 18.956a2.528 2.528 0 0 1 2.523 2.522A2.528 2.528 0 0 1 15.165 24a2.527 2.527 0 0 1-2.52-2.522v-2.522h2.52z" fill="#ECB22E"/><path d="M15.165 17.688a2.527 2.527 0 0 1-2.52-2.523 2.526 2.526 0 0 1 2.52-2.52h6.313A2.527 2.527 0 0 1 24 15.165a2.528 2.528 0 0 1-2.522 2.523h-6.313z" fill="#ECB22E"/></svg>,
+        onConnect: () => { window.location.href = "/api/slack-connect?action=connect"; },
+        onDisconnect: () => { if (confirm("Disconnect Slack?")) window.location.href = "/api/slack-connect?action=disconnect"; },
+    },
+    {
+        id: "zoom", name: "Zoom", sub: "Video meetings", sessionKey: "hasZoom",
+        logo: <svg viewBox="0 0 24 24" className="w-5 h-5"><rect width="24" height="24" rx="5" fill="#2D8CFF"/><path d="M14.5 8H5a2 2 0 0 0-2 2v4a2 2 0 0 0 2 2h9.5a1.5 1.5 0 0 0 1.5-1.5v-5A1.5 1.5 0 0 0 14.5 8zm4.146 1.269L16 11v2l2.646 1.731A.75.75 0 0 0 20 14.1V9.9a.75.75 0 0 0-1.354-.631z" fill="#fff"/></svg>,
+        onConnect: () => { window.location.href = "/api/zoom-connect?action=connect"; },
+        onDisconnect: () => { if (confirm("Disconnect Zoom?")) window.location.href = "/api/zoom-connect?action=disconnect"; },
+    },
+    {
+        id: "github", name: "GitHub", sub: "Code & repos", sessionKey: "hasGithub",
+        logo: <svg viewBox="0 0 24 24" className="w-5 h-5" fill="currentColor" style={{ color: "var(--text)" }}><path d="M12 0C5.37 0 0 5.37 0 12c0 5.31 3.435 9.795 8.205 11.385.6.105.825-.255.825-.57 0-.285-.015-1.23-.015-2.235-3.015.555-3.795-.735-4.035-1.41-.135-.345-.72-1.41-1.23-1.695-.42-.225-1.02-.78-.015-.795.945-.015 1.62.87 1.845 1.23 1.08 1.815 2.805 1.305 3.495.99.105-.78.42-1.305.765-1.605-2.67-.3-5.46-1.335-5.46-5.925 0-1.305.465-2.385 1.23-3.225-.12-.3-.54-1.53.12-3.18 0 0 1.005-.315 3.3 1.23.96-.27 1.98-.405 3-.405s2.04.135 3 .405c2.295-1.56 3.3-1.23 3.3-1.23.66 1.65.24 2.88.12 3.18.765.84 1.23 1.905 1.23 3.225 0 4.605-2.805 5.625-5.475 5.925.435.375.81 1.095.81 2.22 0 1.605-.015 2.895-.015 3.3 0 .315.225.69.825.57A12.02 12.02 0 0 0 24 12c0-6.63-5.37-12-12-12z"/></svg>,
+        onConnect: () => { window.location.href = "/api/github-connect?action=connect"; },
+        onDisconnect: () => { if (confirm("Disconnect GitHub?")) window.location.href = "/api/github-connect?action=disconnect"; },
+    },
+    {
+        id: "todoist", name: "Todoist", sub: "Tasks & projects", sessionKey: "hasTodoist",
+        logo: <svg viewBox="0 0 24 24" className="w-5 h-5"><circle cx="12" cy="12" r="12" fill="#DB4035"/><path d="M6 8.5l2.5 2.5L14 5M6 12.5l2.5 2.5L14 9M6 16.5l2.5 2.5L14 13" stroke="#fff" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" fill="none"/></svg>,
+    },
+];
 
 export default function DashboardPage() {
     const { data: session, status } = useSession();
@@ -527,720 +61,202 @@ export default function DashboardPage() {
     const [stats, setStats] = useState<DashboardStats | null>(null);
     const [loading, setLoading] = useState(true);
     const [newChatLoading, setNewChatLoading] = useState(false);
-    const [showNotionModal, setShowNotionModal] = useState(false);
-    const [notionToast, setNotionToast] = useState<{
-        type: "success" | "error";
-        msg: string;
-    } | null>(null);
     const [showTodoistModal, setShowTodoistModal] = useState(false);
-    const [todoistToast, setTodoistToast] = useState<{
-        type: "success" | "error";
-        msg: string;
-    } | null>(null);
+    const [todoistToken, setTodoistToken] = useState("");
+    const [todoistLoading, setTodoistLoading] = useState(false);
+    const [todoistError, setTodoistError] = useState("");
+    const [toast, setToast] = useState<string | null>(null);
 
     const sp = (k: string) => searchParams?.get(k);
-    const refreshKey = `${sp("slack_success")}${sp("zoom_success")}${sp("github_success")}${notionToast?.msg}${todoistToast?.msg}`;
+
+    const refreshStats = async () => {
+        const r = await fetch("/api/dashboard");
+        setStats(await r.json());
+    };
 
     useEffect(() => {
         if (status === "loading") return;
-        if (status === "unauthenticated") {
-            router.push("/login");
-            return;
-        }
+        if (status === "unauthenticated") { router.push("/login"); return; }
         setLoading(true);
-        fetch("/api/dashboard")
-            .then((r) => r.json())
-            .then(setStats)
-            .catch(console.error)
-            .finally(() => setLoading(false));
-    }, [status, router, refreshKey]);
+        refreshStats().finally(() => setLoading(false));
+        if (sp("slack_success") === "1") setToast("Slack connected to " + (sp("team") ?? "workspace"));
+        if (sp("zoom_success") === "1") setToast("Zoom connected as " + (sp("name") ?? "Zoom Account"));
+        if (sp("github_success") === "1") setToast("GitHub connected as @" + (sp("username") ?? "user"));
+        if (sp("zoom_error")) setToast("Zoom error: " + sp("zoom_error"));
+        if (sp("github_error")) setToast("GitHub error: " + sp("github_error"));
+    }, [status]);
 
     const newChat = async () => {
         setNewChatLoading(true);
         try {
             const r = await fetch("/api/threads", { method: "POST" });
             const t = await r.json();
-            router.push(`/chat/${t.id}`);
-        } catch {
-            alert("Could not create chat.");
-        } finally {
-            setNewChatLoading(false);
-        }
+            router.push("/chat/" + t.id);
+        } catch { alert("Could not create chat."); } finally { setNewChatLoading(false); }
     };
 
-    const disconnectNotion = async () => {
-        if (!confirm("Disconnect Notion?")) return;
-        await fetch("/api/notion-connect", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ action: "disconnect" }),
-        });
-        setNotionToast({
-            type: "info" as "success",
-            msg: "Notion disconnected.",
-        });
-        const r = await fetch("/api/dashboard");
-        setStats(await r.json());
+    const handleTodoistConnect = async () => {
+        if (!todoistToken.trim()) { setTodoistError("Please paste your API token."); return; }
+        setTodoistLoading(true); setTodoistError("");
+        try {
+            const res = await fetch("/api/todoist-connect", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "connect", token: todoistToken.trim() }) });
+            const data = await res.json();
+            if (!res.ok || data.error) { setTodoistError(data.error ?? "Connection failed."); }
+            else { setShowTodoistModal(false); setTodoistToken(""); setToast("Todoist connected as " + (data.fullName ?? "user")); await refreshStats(); }
+        } catch { setTodoistError("Network error."); } finally { setTodoistLoading(false); }
     };
 
     const disconnectTodoist = async () => {
         if (!confirm("Disconnect Todoist?")) return;
-        await fetch("/api/todoist-connect", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ action: "disconnect" }),
-        });
-        setTodoistToast({
-            type: "success" as "error",
-            msg: "Todoist disconnected.",
-        });
-        const r = await fetch("/api/dashboard");
-        setStats(await r.json());
+        await fetch("/api/todoist-connect", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "disconnect" }) });
+        await refreshStats();
     };
 
-    const handleTodoistConnected = async (name: string) => {
-        setShowTodoistModal(false);
-        setTodoistToast({
-            type: "success",
-            msg: `✓ Todoist connected as "${name}"! Try: "show my tasks for today"`,
-        });
-        const r = await fetch("/api/dashboard");
-        setStats(await r.json());
-    };
+    if (status === "loading") return <div className="flex items-center justify-center h-full"><Spinner className="w-5 h-5" /></div>;
 
-    const handleNotionConnected = async (ws: string) => {
-        setShowNotionModal(false);
-        setNotionToast({
-            type: "success",
-            msg: `✓ Notion connected to "${ws}"! Share pages with your integration in Notion → ··· → Add connections.`,
-        });
-        const r = await fetch("/api/dashboard");
-        setStats(await r.json());
-    };
-
-    if (status === "loading")
-        return (
-            <div className="flex items-center justify-center h-full">
-                <Spinner className="w-6 h-6" />
-            </div>
-        );
-
-    const connected = (p: string) =>
-        stats?.integrations.some((i) => i.provider === p) ?? false;
-    const teamName = (p: string) =>
-        stats?.integrations.find((i) => i.provider === p)?.teamName;
-    const totalConnected = [
-        "google",
-        "slack",
-        "zoom",
-        "notion",
-        "github",
-        "todoist",
-    ].filter(connected).length;
-    // Tavily doesn't require OAuth — check env (approximation: always show as needing setup unless we can verify)
-    // We show it as a separate "no login needed" card
+    const connected = (p: string) => stats?.integrations.some((i) => i.provider === p) ?? false;
+    const teamName = (p: string) => stats?.integrations.find((i) => i.provider === p)?.teamName;
+    const totalConnected = ["google", "slack", "zoom", "github", "todoist"].filter(connected).length;
+    const hour = new Date().getHours();
+    const greeting = hour < 12 ? "morning" : hour < 17 ? "afternoon" : "evening";
 
     return (
-        <div className="h-full flex flex-col">
+        <div className="h-full flex flex-col" style={{ background: "var(--bg)" }}>
             <DashboardHeader />
-            {showNotionModal && (
-                <NotionTokenModal
-                    onClose={() => setShowNotionModal(false)}
-                    onConnected={handleNotionConnected}
-                />
-            )}
+
             {showTodoistModal && (
-                <TodoistTokenModal
-                    onClose={() => setShowTodoistModal(false)}
-                    onConnected={handleTodoistConnected}
-                />
+                <Modal title="Connect Todoist" icon="checkmark" iconBg="#DB4035" onClose={() => setShowTodoistModal(false)}>
+                    <p className="text-xs mb-3" style={{ color: "var(--text-2)" }}>
+                        Get your token at{" "}
+                        <a href="https://app.todoist.com/app/settings/integrations/developer" target="_blank" className="underline" style={{ color: "var(--accent)" }}>Todoist Settings</a>
+                    </p>
+                    <div className="space-y-3">
+                        <input type="password" value={todoistToken} onChange={(e) => { setTodoistToken(e.target.value); setTodoistError(""); }}
+                            onKeyDown={(e) => e.key === "Enter" && handleTodoistConnect()}
+                            placeholder="Your 40-character Todoist API token"
+                            className="w-full rounded-xl px-3 py-2.5 text-sm font-mono outline-none"
+                            style={{ background: "var(--bg-2)", border: "1px solid var(--border)", color: "var(--text)" }}/>
+                        {todoistError && <p className="text-xs px-3 py-2 rounded-lg" style={{ color: "#ef4444", background: "rgba(239,68,68,0.08)", border: "1px solid rgba(239,68,68,0.2)" }}>{todoistError}</p>}
+                        <button onClick={handleTodoistConnect} disabled={todoistLoading}
+                            className="w-full py-2 rounded-xl text-sm font-medium text-white disabled:opacity-50"
+                            style={{ background: "var(--accent)" }}>
+                            {todoistLoading ? "Connecting..." : "Connect Todoist"}
+                        </button>
+                    </div>
+                </Modal>
             )}
 
             <div className="flex-1 overflow-y-auto">
-                <div className="max-w-4xl mx-auto px-8 py-8">
-                    {/* Header */}
-                    <div className="flex items-start justify-between mb-8">
-                        <div>
-                            <h1 className="font-display text-2xl font-bold text-ink">
-                                Dashboard
-                            </h1>
-                            <p className="text-sm text-ink-muted mt-1">
-                                Welcome back,{" "}
-                                {session?.user?.name?.split(" ")[0] ?? "there"}
-                            </p>
+                <div className="max-w-3xl mx-auto px-8 py-10">
+                    {toast && (
+                        <div className="mb-6 px-4 py-3 rounded-xl text-sm" style={{ background: "rgba(34,197,94,0.08)", border: "1px solid rgba(34,197,94,0.15)", color: "#22c55e" }}>
+                            {toast}
                         </div>
-                        <Button
-                            onClick={newChat}
-                            size="sm"
-                            loading={newChatLoading}
-                        >
-                            + New Chat
-                        </Button>
+                    )}
+
+                    <div className="flex items-center justify-between mb-8">
+                        <div>
+                            <h1 className="text-xl font-bold" style={{ color: "var(--text)" }}>Good {greeting}, {session?.user?.name?.split(" ")[0] ?? "there"}</h1>
+                            <p className="text-sm mt-0.5" style={{ color: "var(--text-3)" }}>{totalConnected} of 5 integrations connected</p>
+                        </div>
+                        <button onClick={newChat} disabled={newChatLoading} className="px-4 py-2 rounded-xl text-sm font-medium text-white disabled:opacity-50 transition-opacity" style={{ background: "var(--accent)" }}>
+                            {newChatLoading ? "Creating..." : "New Chat"}
+                        </button>
                     </div>
 
-                    {/* Toasts */}
-                    {notionToast && (
-                        <Toast type={notionToast.type}>{notionToast.msg}</Toast>
-                    )}
-                    {todoistToast && (
-                        <Toast type={todoistToast.type}>
-                            {todoistToast.msg}
-                        </Toast>
-                    )}
-                    {sp("slack_success") === "1" && (
-                        <Toast type="success">
-                            ✓ Slack connected to{" "}
-                            <strong>{sp("team") ?? "workspace"}</strong>!
-                        </Toast>
-                    )}
-                    {sp("slack_success") === "disconnected" && (
-                        <Toast type="info">Slack disconnected.</Toast>
-                    )}
-                    {sp("slack_error") && (
-                        <Toast type="error">
-                            <strong>Slack: </strong>
-                            {ERRORS.slack[sp("slack_error")!] ??
-                                sp("slack_error")}
-                        </Toast>
-                    )}
-                    {sp("zoom_success") === "1" && (
-                        <Toast type="success">
-                            ✓ Zoom connected
-                            {sp("name") ? ` as ${sp("name")}` : ""}!
-                        </Toast>
-                    )}
-                    {sp("zoom_success") === "disconnected" && (
-                        <Toast type="info">Zoom disconnected.</Toast>
-                    )}
-                    {sp("zoom_error") && (
-                        <Toast type="error">
-                            <strong>Zoom: </strong>
-                            {ERRORS.zoom[sp("zoom_error")!] ?? sp("zoom_error")}
-                        </Toast>
-                    )}
-                    {sp("github_success") === "1" && (
-                        <Toast type="success">
-                            ✓ GitHub connected as{" "}
-                            <strong>@{sp("username")}</strong>! Try: "what PRs
-                            need my review?"
-                        </Toast>
-                    )}
-                    {sp("github_success") === "disconnected" && (
-                        <Toast type="info">GitHub disconnected.</Toast>
-                    )}
-                    {sp("github_error") && (
-                        <Toast type="error">
-                            <strong>GitHub: </strong>
-                            {ERRORS.github[sp("github_error")!] ??
-                                sp("github_error")}
-                        </Toast>
-                    )}
-
                     {loading ? (
-                        <div className="flex items-center justify-center py-20">
-                            <Spinner className="w-6 h-6" />
-                        </div>
+                        <div className="flex items-center justify-center py-20"><Spinner className="w-5 h-5" /></div>
                     ) : (
-                        <div className="space-y-8">
-                            {/* Stats */}
-                            <section>
-                                <h2 className="text-xs font-mono text-ink-muted uppercase tracking-widest mb-4">
-                                    Overview
-                                </h2>
-                                <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                                    <StatsCard
-                                        icon="◎"
-                                        label="Conversations"
-                                        value={stats?.totalThreads ?? 0}
-                                        sub="All time"
-                                        accent
-                                    />
-                                    <StatsCard
-                                        icon="◉"
-                                        label="Messages"
-                                        value={stats?.totalMessages ?? 0}
-                                        sub="Sent and received"
-                                    />
-                                    <StatsCard
-                                        icon="⚡"
-                                        label="Integrations"
-                                        value={`${totalConnected} / 6`}
-                                        sub="Connected"
-                                    />
-                                    <StatsCard
-                                        icon="●"
-                                        label="Status"
-                                        value={
-                                            totalConnected === 6
-                                                ? "Full"
-                                                : totalConnected > 0
-                                                  ? "Partial"
-                                                  : "None"
-                                        }
-                                        sub={
-                                            totalConnected === 6
-                                                ? "All active"
-                                                : "Connect more below"
-                                        }
-                                    />
-                                </div>
-                            </section>
-
-                            {/* Integrations */}
-                            <section>
-                                <div className="flex items-center justify-between mb-4">
-                                    <h2 className="text-xs font-mono text-ink-muted uppercase tracking-widest">
-                                        Integrations
-                                    </h2>
-                                    <span className="text-xs text-ink-muted">
-                                        {totalConnected} of 6 connected
-                                    </span>
-                                </div>
-                                <div className="space-y-3">
-                                    <IntCard
-                                        iconText="G"
-                                        iconBg="#4285F4"
-                                        name="Google"
-                                        subtitle="Gmail + Calendar"
-                                        capabilities={[
-                                            "Read emails",
-                                            "View calendar",
-                                            "Create events",
-                                            "Check conflicts",
-                                        ]}
-                                        connected={connected("google")}
-                                        detail={
-                                            connected("google")
-                                                ? `Signed in as ${session?.user?.email}`
-                                                : "Click to grant Gmail and Calendar access"
-                                        }
-                                        onConnect={() =>
-                                            signIn("google", {
-                                                callbackUrl: "/dashboard",
-                                            })
-                                        }
-                                    />
-
-                                    <IntCard
-                                        iconText="S"
-                                        iconBg="#4A154B"
-                                        name="Slack"
-                                        subtitle="Team messaging"
-                                        capabilities={[
-                                            "List channels",
-                                            "Send messages",
-                                            "Announce meetings",
-                                        ]}
-                                        connected={connected("slack")}
-                                        detail={
-                                            connected("slack")
-                                                ? `Workspace: ${teamName("slack") ?? "Connected"}`
-                                                : "Requires a bot token — see setup guide"
-                                        }
-                                        onConnect={() => {
-                                            window.location.href =
-                                                "/api/slack-connect?action=connect";
-                                        }}
-                                        onDisconnect={() => {
-                                            if (confirm("Disconnect Slack?"))
-                                                window.location.href =
-                                                    "/api/slack-connect?action=disconnect";
-                                        }}
-                                        setupGuide={
-                                            <ol className="space-y-1.5 text-xs text-ink-dim list-decimal list-inside">
-                                                <li>
-                                                    Go to{" "}
-                                                    <a
-                                                        href="https://api.slack.com/apps"
-                                                        target="_blank"
-                                                        className="text-accent underline"
-                                                    >
-                                                        api.slack.com/apps
-                                                    </a>{" "}
-                                                    → Create New App → From
-                                                    scratch
-                                                </li>
-                                                <li>
-                                                    OAuth &amp; Permissions →
-                                                    Bot Token Scopes:{" "}
-                                                    <code className="font-mono bg-surface-3 px-1 rounded">
-                                                        chat:write
-                                                    </code>{" "}
-                                                    <code className="font-mono bg-surface-3 px-1 rounded">
-                                                        channels:read
-                                                    </code>{" "}
-                                                    <code className="font-mono bg-surface-3 px-1 rounded">
-                                                        groups:read
-                                                    </code>
-                                                </li>
-                                                <li>
-                                                    Install to Workspace → copy{" "}
-                                                    <strong>
-                                                        Bot User OAuth Token
-                                                    </strong>{" "}
-                                                    (xoxb-...)
-                                                </li>
-                                                <li>
-                                                    Add{" "}
-                                                    <code className="font-mono bg-surface-3 px-1 rounded">
-                                                        SLACK_BOT_TOKEN=xoxb-...
-                                                    </code>{" "}
-                                                    to .env.local → restart
-                                                    Docker
-                                                </li>
-                                                <li>
-                                                    Click Connect Slack, then{" "}
-                                                    <code className="font-mono bg-surface-3 px-1 rounded">
-                                                        /invite @YourBot
-                                                    </code>{" "}
-                                                    in Slack channels
-                                                </li>
-                                            </ol>
-                                        }
-                                    />
-
-                                    <IntCard
-                                        iconText="Z"
-                                        iconBg="#2D8CFF"
-                                        name="Zoom"
-                                        subtitle="Video meetings"
-                                        capabilities={[
-                                            "List meetings",
-                                            "Create meetings",
-                                            "Get join links",
-                                            "Delete meetings",
-                                        ]}
-                                        connected={connected("zoom")}
-                                        detail={
-                                            connected("zoom")
-                                                ? `Account: ${teamName("zoom") ?? "Connected"}`
-                                                : "OAuth — click Connect to authorize"
-                                        }
-                                        onConnect={() => {
-                                            window.location.href =
-                                                "/api/zoom-connect?action=connect";
-                                        }}
-                                        onDisconnect={() => {
-                                            if (confirm("Disconnect Zoom?"))
-                                                window.location.href =
-                                                    "/api/zoom-connect?action=disconnect";
-                                        }}
-                                        setupGuide={
-                                            <ol className="space-y-1.5 text-xs text-ink-dim list-decimal list-inside">
-                                                <li>
-                                                    Go to{" "}
-                                                    <a
-                                                        href="https://marketplace.zoom.us/develop/create"
-                                                        target="_blank"
-                                                        className="text-accent underline"
-                                                    >
-                                                        marketplace.zoom.us
-                                                    </a>{" "}
-                                                    → Build App →{" "}
-                                                    <strong>OAuth</strong>
-                                                </li>
-                                                <li>
-                                                    Redirect URL:{" "}
-                                                    <code className="font-mono bg-surface-3 px-1 rounded">
-                                                        http://localhost:3000/api/zoom-callback
-                                                    </code>
-                                                </li>
-                                                <li>
-                                                    Scopes:{" "}
-                                                    <code className="font-mono bg-surface-3 px-1 rounded">
-                                                        meeting:read
-                                                    </code>{" "}
-                                                    <code className="font-mono bg-surface-3 px-1 rounded">
-                                                        meeting:write
-                                                    </code>{" "}
-                                                    <code className="font-mono bg-surface-3 px-1 rounded">
-                                                        user:read
-                                                    </code>
-                                                </li>
-                                                <li>
-                                                    Copy Client ID + Secret →
-                                                    add to .env.local → restart
-                                                    Docker → click Connect
-                                                </li>
-                                            </ol>
-                                        }
-                                    />
-
-                                    <IntCard
-                                        iconText="N"
-                                        iconBg="#191919"
-                                        name="Notion"
-                                        subtitle="Docs & databases"
-                                        capabilities={[
-                                            "Search pages",
-                                            "Read content",
-                                            "Create pages",
-                                            "Append notes",
-                                            "List databases",
-                                        ]}
-                                        connected={connected("notion")}
-                                        detail={
-                                            connected("notion")
-                                                ? `Workspace: ${teamName("notion") ?? "Connected"} — share pages with your integration`
-                                                : "Paste Internal Integration Secret — no OAuth needed"
-                                        }
-                                        onConnect={() =>
-                                            setShowNotionModal(true)
-                                        }
-                                        onDisconnect={disconnectNotion}
-                                    />
-
-                                    <IntCard
-                                        iconText="GH"
-                                        iconBg="#24292e"
-                                        name="GitHub"
-                                        subtitle="Code & repos"
-                                        capabilities={[
-                                            "List repos",
-                                            "View PRs needing review",
-                                            "Browse issues",
-                                            "Create issues",
-                                        ]}
-                                        connected={connected("github")}
-                                        detail={
-                                            connected("github")
-                                                ? `Connected as @${teamName("github") ?? "github user"}`
-                                                : "OAuth — click Connect to authorize"
-                                        }
-                                        onConnect={() => {
-                                            window.location.href =
-                                                "/api/github-connect?action=connect";
-                                        }}
-                                        onDisconnect={() => {
-                                            if (confirm("Disconnect GitHub?"))
-                                                window.location.href =
-                                                    "/api/github-connect?action=disconnect";
-                                        }}
-                                        setupGuide={
-                                            <ol className="space-y-1.5 text-xs text-ink-dim list-decimal list-inside">
-                                                <li>
-                                                    Go to{" "}
-                                                    <a
-                                                        href="https://github.com/settings/developers"
-                                                        target="_blank"
-                                                        className="text-accent underline"
-                                                    >
-                                                        github.com/settings/developers
-                                                    </a>{" "}
-                                                    → OAuth Apps →{" "}
-                                                    <strong>
-                                                        New OAuth App
-                                                    </strong>
-                                                </li>
-                                                <li>
-                                                    Homepage URL:{" "}
-                                                    <code className="font-mono bg-surface-3 px-1 rounded">
-                                                        http://localhost:3000
-                                                    </code>
-                                                </li>
-                                                <li>
-                                                    Callback URL:{" "}
-                                                    <code className="font-mono bg-surface-3 px-1 rounded">
-                                                        http://localhost:3000/api/github-callback
-                                                    </code>
-                                                </li>
-                                                <li>
-                                                    Register App → copy Client
-                                                    ID + generate Client Secret
-                                                </li>
-                                                <li>
-                                                    Add to .env.local:
-                                                    <div className="mt-1 font-mono bg-surface-1 rounded p-2 text-[0.68rem]">
-                                                        GITHUB_CLIENT_ID=your_id
-                                                        <br />
-                                                        GITHUB_CLIENT_SECRET=your_secret
-                                                    </div>
-                                                </li>
-                                                <li>
-                                                    Restart Docker → click{" "}
-                                                    <strong>
-                                                        Connect GitHub
-                                                    </strong>
-                                                </li>
-                                            </ol>
-                                        }
-                                    />
-
-                                    <IntCard
-                                        iconText="✓"
-                                        iconBg="#DB4035"
-                                        name="Todoist"
-                                        subtitle="Tasks & projects"
-                                        capabilities={[
-                                            "Today's tasks",
-                                            "Overdue tasks",
-                                            "Create tasks",
-                                            "Complete tasks",
-                                            "Update due dates",
-                                        ]}
-                                        connected={connected("todoist")}
-                                        detail={
-                                            connected("todoist")
-                                                ? `Connected as ${teamName("todoist") ?? "Todoist user"}`
-                                                : "Paste your API token — no OAuth, no env vars needed"
-                                        }
-                                        onConnect={() =>
-                                            setShowTodoistModal(true)
-                                        }
-                                        onDisconnect={disconnectTodoist}
-                                    />
-
-                                    {/* Tavily — no OAuth, just an env var */}
-                                    <TavilyCard configured={false} />
-                                </div>
-                            </section>
-
-                            {/* Example prompts */}
-                            <section className="card p-5">
-                                <h3 className="text-sm font-semibold text-ink mb-3">
-                                    What you can ask SmartDesk
-                                </h3>
-                                <div className="grid grid-cols-1 md:grid-cols-2 gap-1.5">
-                                    {(
-                                        [
-                                            [
-                                                "G",
-                                                "#4285F4",
-                                                "Show my unread emails from today",
-                                            ],
-                                            [
-                                                "G",
-                                                "#4285F4",
-                                                "Schedule a team sync tomorrow at 3pm",
-                                            ],
-                                            [
-                                                "S",
-                                                "#4A154B",
-                                                "Send 'standup done' to #general",
-                                            ],
-                                            [
-                                                "Z",
-                                                "#2D8CFF",
-                                                "Create a Zoom call for Friday 2pm",
-                                            ],
-                                            [
-                                                "GH",
-                                                "#24292e",
-                                                "What PRs are waiting for my review?",
-                                            ],
-                                            [
-                                                "GH",
-                                                "#24292e",
-                                                "List open issues assigned to me",
-                                            ],
-                                            [
-                                                "GH",
-                                                "#24292e",
-                                                "Create a GitHub issue: fix login bug in my-app",
-                                            ],
-                                            [
-                                                "✓",
-                                                "#DB4035",
-                                                "Show my tasks for today",
-                                            ],
-                                            [
-                                                "✓",
-                                                "#DB4035",
-                                                "Add task: follow up with client — due tomorrow",
-                                            ],
-                                            [
-                                                "✓",
-                                                "#DB4035",
-                                                "Mark the client proposal task as done",
-                                            ],
-                                            [
-                                                "🔍",
-                                                "#0066FF",
-                                                "What's the latest news in AI?",
-                                            ],
-                                            [
-                                                "🔍",
-                                                "#0066FF",
-                                                "Search for Next.js 15 migration guide",
-                                            ],
-                                        ] as [string, string, string][]
-                                    ).map(([icon, color, text]) => (
-                                        <button
-                                            key={text}
-                                            onClick={newChat}
-                                            className="flex items-center gap-2.5 text-left px-3 py-2 rounded-lg hover:bg-surface-2 transition-colors group"
-                                        >
-                                            <span
-                                                className="w-5 h-5 rounded text-white text-[0.6rem] font-bold flex items-center justify-center shrink-0"
-                                                style={{
-                                                    backgroundColor: color,
-                                                }}
-                                            >
-                                                {icon}
-                                            </span>
-                                            <span className="text-xs text-ink-dim group-hover:text-ink transition-colors">
-                                                {text}
-                                            </span>
-                                        </button>
-                                    ))}
-                                </div>
-                            </section>
-
-                            {/* Recent threads */}
-                            {stats && stats.recentThreads.length > 0 ? (
-                                <section>
-                                    <div className="flex items-center justify-between mb-4">
-                                        <h2 className="text-xs font-mono text-ink-muted uppercase tracking-widest">
-                                            Recent Conversations
-                                        </h2>
-                                        <Link
-                                            href="/chat"
-                                            className="text-xs text-accent hover:underline"
-                                        >
-                                            View all
-                                        </Link>
+                        <div className="space-y-6">
+                            <div className="grid grid-cols-3 gap-3">
+                                {[
+                                    { label: "Conversations", value: stats?.totalThreads ?? 0 },
+                                    { label: "Messages", value: stats?.totalMessages ?? 0 },
+                                    { label: "Connected", value: totalConnected + "/5" },
+                                ].map((stat) => (
+                                    <div key={stat.label} className="rounded-2xl px-5 py-4" style={{ background: "var(--bg-1)", border: "1px solid var(--border)" }}>
+                                        <p className="text-2xl font-bold" style={{ color: "var(--text)" }}>{stat.value}</p>
+                                        <p className="text-xs mt-1" style={{ color: "var(--text-3)" }}>{stat.label}</p>
                                     </div>
-                                    <div className="space-y-2">
-                                        {stats.recentThreads.map((t) => (
-                                            <Link
-                                                key={t.id}
-                                                href={`/chat/${t.id}`}
-                                                className="card-hover flex items-center gap-4 px-4 py-3"
-                                            >
-                                                <div className="w-8 h-8 rounded-lg bg-surface-3 border border-border flex items-center justify-center text-sm text-ink-muted shrink-0">
-                                                    ◎
+                                ))}
+                            </div>
+
+                            <div>
+                                <p className="text-xs font-semibold uppercase tracking-widest mb-3" style={{ color: "var(--text-3)" }}>Integrations</p>
+                                <div className="rounded-2xl overflow-hidden" style={{ border: "1px solid var(--border)" }}>
+                                    {INT_DEFS.map((int, idx) => {
+                                        const isConnected = connected(int.id);
+                                        const detail = isConnected
+                                            ? (int.id === "google" ? "Signed in as " + session?.user?.email : teamName(int.id) ?? "Connected")
+                                            : int.sub;
+                                        const handleConnect = int.id === "todoist" ? () => setShowTodoistModal(true) : int.onConnect;
+                                        const handleDisconnect = int.id === "todoist" ? disconnectTodoist : int.onDisconnect;
+
+                                        return (
+                                            <div key={int.id} className="flex items-center gap-4 px-5 py-4"
+                                                style={{ background: idx % 2 === 0 ? "var(--bg-1)" : "var(--bg-2)", borderBottom: idx < INT_DEFS.length - 1 ? "1px solid var(--border-soft)" : "none" }}>
+                                                <div className={"w-10 h-10 rounded-xl flex items-center justify-center shrink-0 " + (isConnected ? "" : "opacity-25 grayscale")}
+                                                    style={{ background: "var(--bg-3)" }}>
+                                                    {int.logo}
                                                 </div>
                                                 <div className="flex-1 min-w-0">
-                                                    <p className="text-sm font-medium text-ink truncate">
-                                                        {t.title}
-                                                    </p>
-                                                    {t.lastMessage && (
-                                                        <p className="text-xs text-ink-muted truncate">
-                                                            {t.lastMessage}
-                                                        </p>
+                                                    <p className="text-sm font-medium" style={{ color: "var(--text)" }}>{int.name}</p>
+                                                    <p className="text-xs truncate" style={{ color: "var(--text-3)" }}>{detail}</p>
+                                                </div>
+                                                <div className="flex items-center gap-3 shrink-0">
+                                                    <span className="w-2 h-2 rounded-full" style={{ background: isConnected ? "var(--success)" : "var(--border)" }} />
+                                                    {isConnected ? (
+                                                        handleDisconnect && (
+                                                            <button onClick={handleDisconnect} className="text-xs" style={{ color: "var(--text-3)" }}>Disconnect</button>
+                                                        )
+                                                    ) : (
+                                                        handleConnect && (
+                                                            <button onClick={handleConnect} className="text-xs font-medium" style={{ color: "var(--accent)" }}>Connect</button>
+                                                        )
                                                     )}
                                                 </div>
-                                                <p className="text-xs text-ink-muted font-mono shrink-0">
-                                                    {new Date(
-                                                        t.updatedAt,
-                                                    ).toLocaleDateString()}
+                                            </div>
+                                        );
+                                    })}
+                                </div>
+                            </div>
+
+                            {stats && stats.recentThreads.length > 0 && (
+                                <div>
+                                    <div className="flex items-center justify-between mb-3">
+                                        <p className="text-xs font-semibold uppercase tracking-widest" style={{ color: "var(--text-3)" }}>Recent Chats</p>
+                                        <Link href="/chat" className="text-xs" style={{ color: "var(--accent)" }}>View all</Link>
+                                    </div>
+                                    <div className="rounded-2xl overflow-hidden" style={{ border: "1px solid var(--border)" }}>
+                                        {stats.recentThreads.map((t, idx) => (
+                                            <Link key={t.id} href={"/chat/" + t.id}
+                                                className="flex items-center gap-4 px-5 py-3.5"
+                                                style={{ background: idx % 2 === 0 ? "var(--bg-1)" : "var(--bg-2)", borderBottom: idx < stats.recentThreads.length - 1 ? "1px solid var(--border-soft)" : "none" }}>
+                                                <div className="w-8 h-8 rounded-lg flex items-center justify-center shrink-0" style={{ background: "var(--bg-3)" }}>
+                                                    <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" style={{ color: "var(--text-3)" }}>
+                                                        <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" strokeLinecap="round" strokeLinejoin="round"/>
+                                                    </svg>
+                                                </div>
+                                                <div className="flex-1 min-w-0">
+                                                    <p className="text-sm font-medium truncate" style={{ color: "var(--text)" }}>{t.title}</p>
+                                                    {t.lastMessage && <p className="text-xs truncate" style={{ color: "var(--text-3)" }}>{t.lastMessage}</p>}
+                                                </div>
+                                                <p className="text-xs shrink-0" style={{ color: "var(--text-3)" }}>
+                                                    {new Date(t.updatedAt).toLocaleDateString("en-US", { month: "short", day: "numeric" })}
                                                 </p>
                                             </Link>
                                         ))}
                                     </div>
-                                </section>
-                            ) : (
-                                <section className="text-center py-12">
-                                    <p className="text-ink-muted text-sm mb-4">
-                                        No conversations yet.
-                                    </p>
-                                    <Button
-                                        onClick={newChat}
-                                        loading={newChatLoading}
-                                    >
+                                </div>
+                            )}
+
+                            {stats && stats.recentThreads.length === 0 && (
+                                <div className="text-center py-16">
+                                    <p className="text-sm mb-4" style={{ color: "var(--text-3)" }}>No conversations yet.</p>
+                                    <button onClick={newChat} disabled={newChatLoading} className="px-5 py-2.5 rounded-xl text-sm font-medium text-white disabled:opacity-50" style={{ background: "var(--accent)" }}>
                                         Start your first chat
-                                    </Button>
-                                </section>
+                                    </button>
+                                </div>
                             )}
                         </div>
                     )}

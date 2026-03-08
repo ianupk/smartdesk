@@ -1,63 +1,51 @@
-import "next-auth";
+import type { Session } from "next-auth";
 
 declare module "next-auth" {
     interface Session {
         userId: string;
         googleAccessToken?: string;
         slackAccessToken?: string;
-        hasSlack?: boolean;
         zoomAccessToken?: string;
-        hasZoom?: boolean;
-        zoomName?: string;
-        notionAccessToken?: string;
-        hasNotion?: boolean;
-        notionWorkspace?: string;
         githubAccessToken?: string;
-        hasGithub?: boolean;
-        githubUsername?: string;
         todoistAccessToken?: string;
+        hasSlack?: boolean;
+        hasZoom?: boolean;
+        hasGithub?: boolean;
         hasTodoist?: boolean;
+        zoomName?: string;
+        githubUsername?: string;
         todoistName?: string;
     }
-    interface User { id: string; }
+}
+
+export type IntegrationProvider = "google" | "slack" | "zoom" | "github" | "todoist";
+
+export interface DashboardStats {
+    totalThreads: number;
+    totalMessages: number;
+    integrations: { provider: string; connected: boolean; teamName?: string | null }[];
+    recentThreads: { id: string; title: string; updatedAt: Date; messageCount?: number; lastMessage?: string }[];
+}
+
+export interface ChatThread {
+    id: string;
+    title: string;
+    updatedAt: string;
+    messageCount?: number;
+    lastMessage?: string;
 }
 
 export interface ChatMessage {
     id: string;
     role: "user" | "assistant";
     content: string;
-    toolCalls?: string[];
+    toolCalls: string[];
     createdAt: Date;
 }
 
-export interface ChatThread {
-    id: string;
-    title: string;
-    lastMessage?: string;
-    updatedAt: Date;
-    messageCount?: number;
-}
-
 export interface StreamEvent {
-    type: "tool_call" | "token" | "interrupt" | "done" | "error";
-    tool?: string;
+    type: "token" | "tool_call" | "done" | "error" | "interrupt";
     content?: string;
-    details?: Record<string, unknown>;
+    tool?: string;
     message?: string;
-}
-
-export type IntegrationProvider = "google" | "slack" | "zoom" | "notion" | "github" | "todoist";
-
-export interface Integration {
-    provider: IntegrationProvider;
-    connected: boolean;
-    teamName?: string;
-    email?: string;
-}
-
-export interface DashboardStats {
-    totalThreads: number;
-    totalMessages: number;
-    integrations: Integration[];
-    recentThreads: ChatThread[];
 }

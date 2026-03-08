@@ -118,7 +118,6 @@ export async function GET(req: NextRequest) {
         }
     }
 
-    // ── DISCONNECT ──────────────────────────────────────────────────────────
     if (action === "disconnect") {
         try {
             await prisma.integration.deleteMany({

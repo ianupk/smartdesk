@@ -5,7 +5,7 @@ import { Command } from "@langchain/langgraph";
 import { authOptions } from "@/lib/auth";
 import { getGraph } from "@/lib/graph";
 import { prisma } from "@/lib/prisma";
-import { refreshZoomToken } from "@/lib/oauth";
+import { getZoomToken } from "@/lib/oauth";
 
 const enc = new TextEncoder();
 const sse = (ctrl: ReadableStreamDefaultController, obj: object) =>
@@ -24,7 +24,7 @@ export async function POST(req: NextRequest, { params }: { params: { threadId: s
   // Zoom may need a token refresh before the request
   let zoomToken = session.zoomAccessToken;
   if (session.hasZoom && zoomToken) {
-    const fresh = await refreshZoomToken(session.userId);
+    const fresh = await getZoomToken(session.userId);
     if (fresh) zoomToken = fresh;
   }
 

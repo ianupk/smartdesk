@@ -113,12 +113,10 @@ export async function POST(req: NextRequest) {
                 provider: "todoist",
                 accessToken: trimmed,
                 teamName: fullName,
-                metadata: JSON.stringify({ email, type: "personal_token" }),
             },
             update: {
                 accessToken: trimmed,
                 teamName: fullName,
-                metadata: JSON.stringify({ email, type: "personal_token" }),
             },
         });
 

@@ -2,7 +2,7 @@
  * Zoom Tools for LangGraph
  *
  * Token flows: session → config.configurable.zoomAccessToken → here
- * Auto-refresh: refreshZoomToken() is called before each API request
+ * Auto-refresh: getZoomToken() is called before each API request
  *
  * Most common Zoom use cases covered:
  *   1. List upcoming meetings
@@ -15,7 +15,7 @@ import { tool } from "@langchain/core/tools";
 import { interrupt } from "@langchain/langgraph";
 import { z } from "zod";
 import type { RunnableConfig } from "@langchain/core/runnables";
-import { refreshZoomToken } from "@/lib/oauth";
+import { getZoomToken } from "@/lib/oauth";
 
 // ── Token helper ──────────────────────────────────────────────────────────────
 
@@ -29,7 +29,7 @@ async function getToken(config?: RunnableConfig): Promise<string> {
 
   // Auto-refresh if we have a userId (server-side context)
   if (userId) {
-    const fresh = await refreshZoomToken(userId);
+    const fresh = await getZoomToken(userId);
     if (fresh) return fresh;
   }
 
