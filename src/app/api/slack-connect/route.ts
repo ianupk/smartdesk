@@ -1,3 +1,24 @@
+/**
+ * Slack Integration Handler
+ *
+ * Architecture decision: Bot Token approach (not OAuth)
+ *
+ * WHY NOT OAuth for localhost:
+ *   - Slack OAuth requires HTTPS redirect URIs
+ *   - localhost is HTTP → Slack rejects it completely
+ *   - Even ngrok works but adds setup friction
+ *
+ * HOW THIS WORKS:
+ *   1. User creates a Slack App and gets a Bot Token (xoxb-...)
+ *   2. They add SLACK_BOT_TOKEN to .env.local
+ *   3. Click "Connect Slack" → this route validates the token via auth.test
+ *   4. Token is saved to Integration table tied to the user
+ *   5. Session callback reads it → attaches to every request
+ *   6. Slack tools receive it via LangGraph config.configurable
+ *
+ * For production with real OAuth, see the /api/slack-oauth route (separate file).
+ */
+
 import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
@@ -11,6 +32,7 @@ export async function GET(req: NextRequest) {
 
     const { searchParams } = new URL(req.url);
     const action = searchParams.get("action");
+
     if (action === "connect") {
         const token = process.env.SLACK_BOT_TOKEN;
 
@@ -27,6 +49,7 @@ export async function GET(req: NextRequest) {
         }
 
         try {
+            // Validate token against Slack API
             const testRes = await fetch("https://slack.com/api/auth.test", {
                 method: "POST",
                 headers: {
@@ -51,6 +74,7 @@ export async function GET(req: NextRequest) {
                 );
             }
 
+            // Save token to Integration table — session callback will pick it up
             await prisma.integration.upsert({
                 where: {
                     userId_provider: {
@@ -94,6 +118,7 @@ export async function GET(req: NextRequest) {
         }
     }
 
+    // ── DISCONNECT ──────────────────────────────────────────────────────────
     if (action === "disconnect") {
         try {
             await prisma.integration.deleteMany({

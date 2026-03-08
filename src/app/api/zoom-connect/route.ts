@@ -1,3 +1,20 @@
+/**
+ * Zoom OAuth 2.0 Integration
+ *
+ * Flow:
+ *   1. GET /api/zoom-connect?action=connect  → redirects to Zoom OAuth consent page
+ *   2. Zoom redirects to /api/zoom-callback?code=...
+ *   3. Callback exchanges code for tokens, saves to Integration table
+ *   4. Redirects to /dashboard?zoom_success=1
+ *
+ * Zoom OAuth DOES support http://localhost redirect URIs (unlike Slack) ✓
+ *
+ * Setup:
+ *   marketplace.zoom.us → Build App → OAuth
+ *   Redirect URL: http://localhost:3000/api/zoom-callback
+ *   Scopes: meeting:read, meeting:write, user:read
+ */
+
 import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
@@ -20,6 +37,7 @@ export async function GET(req: NextRequest) {
             );
         }
 
+        // Store userId in state so we know who to save the token for after redirect
         const state = Buffer.from(
             JSON.stringify({ userId: session.userId }),
         ).toString("base64url");
@@ -36,6 +54,7 @@ export async function GET(req: NextRequest) {
 
     if (action === "disconnect") {
         try {
+            // Revoke token with Zoom before deleting (best-effort)
             const integration = await prisma.integration.findUnique({
                 where: {
                     userId_provider: {
@@ -55,7 +74,7 @@ export async function GET(req: NextRequest) {
                             ).toString("base64")}`,
                         },
                     },
-                ).catch(() => {});
+                ).catch(() => {}); // Best-effort
             }
 
             await prisma.integration.deleteMany({

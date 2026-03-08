@@ -1,3 +1,7 @@
+/**
+ * Zoom OAuth callback — exchanges authorization code for tokens
+ */
+
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 
@@ -63,6 +67,7 @@ export async function GET(req: NextRequest) {
 
         const tokens = await tokenRes.json();
 
+        // Fetch Zoom user profile to get display name
         const profileRes = await fetch("https://api.zoom.us/v2/users/me", {
             headers: { Authorization: `Bearer ${tokens.access_token}` },
         });

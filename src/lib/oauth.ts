@@ -17,67 +17,67 @@ import { prisma } from "@/lib/prisma";
 
 export type Provider = "google" | "slack" | "zoom" | "notion";
 
+// ─── Zoom token refresh ───────────────────────────────────────────────────────
+
 export async function refreshZoomToken(userId: string): Promise<string | null> {
-    try {
-        const integration = await prisma.integration.findUnique({
-            where: { userId_provider: { userId, provider: "zoom" } },
-        });
-        if (!integration) return null;
+  try {
+    const integration = await prisma.integration.findUnique({
+      where: { userId_provider: { userId, provider: "zoom" } },
+    });
+    if (!integration) return null;
 
-        if (
-            integration.tokenExpiry &&
-            integration.tokenExpiry > new Date(Date.now() + 5 * 60 * 1000)
-        ) {
-            return integration.accessToken;
-        }
-
-        if (!integration.refreshToken) return integration.accessToken;
-
-        const creds = Buffer.from(
-            `${process.env.ZOOM_CLIENT_ID}:${process.env.ZOOM_CLIENT_SECRET}`,
-        ).toString("base64");
-
-        const res = await fetch("https://zoom.us/oauth/token", {
-            method: "POST",
-            headers: {
-                Authorization: `Basic ${creds}`,
-                "Content-Type": "application/x-www-form-urlencoded",
-            },
-            body: new URLSearchParams({
-                grant_type: "refresh_token",
-                refresh_token: integration.refreshToken,
-            }),
-        });
-
-        if (!res.ok) {
-            console.error("[zoom] Token refresh failed:", await res.text());
-            return integration.accessToken;
-        }
-
-        const data = await res.json();
-        const expiry = new Date(Date.now() + data.expires_in * 1000);
-
-        await prisma.integration.update({
-            where: { userId_provider: { userId, provider: "zoom" } },
-            data: {
-                accessToken: data.access_token,
-                refreshToken: data.refresh_token ?? integration.refreshToken,
-                tokenExpiry: expiry,
-            },
-        });
-
-        return data.access_token;
-    } catch (err) {
-        console.error("[zoom] refreshZoomToken error:", err);
-        return null;
+    // Still valid (with 5 min buffer)
+    if (integration.tokenExpiry && integration.tokenExpiry > new Date(Date.now() + 5 * 60 * 1000)) {
+      return integration.accessToken;
     }
+
+    // Need refresh
+    if (!integration.refreshToken) return integration.accessToken;
+
+    const creds = Buffer.from(
+      `${process.env.ZOOM_CLIENT_ID}:${process.env.ZOOM_CLIENT_SECRET}`
+    ).toString("base64");
+
+    const res = await fetch("https://zoom.us/oauth/token", {
+      method: "POST",
+      headers: {
+        Authorization: `Basic ${creds}`,
+        "Content-Type": "application/x-www-form-urlencoded",
+      },
+      body: new URLSearchParams({
+        grant_type: "refresh_token",
+        refresh_token: integration.refreshToken,
+      }),
+    });
+
+    if (!res.ok) {
+      console.error("[zoom] Token refresh failed:", await res.text());
+      return integration.accessToken; // Return stale but don't crash
+    }
+
+    const data = await res.json();
+    const expiry = new Date(Date.now() + data.expires_in * 1000);
+
+    await prisma.integration.update({
+      where: { userId_provider: { userId, provider: "zoom" } },
+      data: {
+        accessToken: data.access_token,
+        refreshToken: data.refresh_token ?? integration.refreshToken,
+        tokenExpiry: expiry,
+      },
+    });
+
+    return data.access_token;
+  } catch (err) {
+    console.error("[zoom] refreshZoomToken error:", err);
+    return null;
+  }
 }
 
-export async function disconnectIntegration(
-    userId: string,
-    provider: Provider,
-) {
-    await prisma.integration.deleteMany({
-        where: { userId, provider },
-    });
+// ─── Generic disconnect ───────────────────────────────────────────────────────
+
+export async function disconnectIntegration(userId: string, provider: Provider) {
+  await prisma.integration.deleteMany({
+    where: { userId, provider },
+  });
 }

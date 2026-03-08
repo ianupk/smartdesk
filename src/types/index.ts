@@ -3,23 +3,23 @@ import "next-auth";
 declare module "next-auth" {
     interface Session {
         userId: string;
-        // Google (Gmail + Calendar)
         googleAccessToken?: string;
-        // Slack
         slackAccessToken?: string;
         hasSlack?: boolean;
-        // Zoom
         zoomAccessToken?: string;
         hasZoom?: boolean;
         zoomName?: string;
-        // Notion
         notionAccessToken?: string;
         hasNotion?: boolean;
         notionWorkspace?: string;
+        githubAccessToken?: string;
+        hasGithub?: boolean;
+        githubUsername?: string;
+        todoistAccessToken?: string;
+        hasTodoist?: boolean;
+        todoistName?: string;
     }
-    interface User {
-        id: string;
-    }
+    interface User { id: string; }
 }
 
 export interface ChatMessage {
@@ -46,7 +46,7 @@ export interface StreamEvent {
     message?: string;
 }
 
-export type IntegrationProvider = "google" | "slack" | "zoom" | "notion";
+export type IntegrationProvider = "google" | "slack" | "zoom" | "notion" | "github" | "todoist";
 
 export interface Integration {
     provider: IntegrationProvider;
