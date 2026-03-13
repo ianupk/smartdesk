@@ -35,9 +35,23 @@ export default function ChatThreadPage() {
             .then((r) => r.json())
             .then(({ thread }) => {
                 if (thread?.messages) {
-                    setMessages(thread.messages.map((m: {
-                        id: string; role: string; content: string; toolCalls: string[]; createdAt: string;
-                    }) => ({ id: m.id, role: m.role as "user" | "assistant", content: m.content, toolCalls: m.toolCalls, createdAt: new Date(m.createdAt) })));
+                    setMessages(
+                        thread.messages.map(
+                            (m: {
+                                id: string;
+                                role: string;
+                                content: string;
+                                toolCalls: string[];
+                                createdAt: string;
+                            }) => ({
+                                id: m.id,
+                                role: m.role as "user" | "assistant",
+                                content: m.content,
+                                toolCalls: m.toolCalls,
+                                createdAt: new Date(m.createdAt),
+                            }),
+                        ),
+                    );
                 }
                 setInitialLoad(false);
             })
@@ -48,77 +62,152 @@ export default function ChatThreadPage() {
         bottomRef.current?.scrollIntoView({ behavior: "smooth" });
     }, [messages, streamingText, interrupt, activeTool]);
 
-    const streamRequest = useCallback(async (body: object) => {
-        setLoading(true);
-        setActiveTool(null);
-        setStreamingText("");
-        setInterrupt(null);
+    const streamRequest = useCallback(
+        async (body: object) => {
+            setLoading(true);
+            setActiveTool(null);
+            setStreamingText("");
+            setInterrupt(null);
 
-        let accumulated = "";
-        const toolsMade: string[] = [];
+            let accumulated = "";
+            const toolsMade: string[] = [];
 
-        try {
-            const res = await fetch(`/api/chat/${threadId}`, {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify(body),
-            });
-            if (!res.ok) throw new Error(`HTTP ${res.status}`);
+            try {
+                const res = await fetch(`/api/chat/${threadId}`, {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify(body),
+                });
+                if (!res.ok) throw new Error(`HTTP ${res.status}`);
 
-            const reader = res.body!.getReader();
-            const dec = new TextDecoder();
+                const reader = res.body!.getReader();
+                const dec = new TextDecoder();
 
-            while (true) {
-                const { done, value } = await reader.read();
-                if (done) break;
-                const lines = dec.decode(value).split("\n");
-                for (const line of lines) {
-                    if (!line.startsWith("data: ")) continue;
-                    const event: StreamEvent & { details?: Record<string, unknown> } = JSON.parse(line.slice(6));
+                while (true) {
+                    const { done, value } = await reader.read();
+                    if (done) break;
+                    const lines = dec.decode(value).split("\n");
+                    for (const line of lines) {
+                        if (!line.startsWith("data: ")) continue;
+                        const event: StreamEvent & {
+                            details?: Record<string, unknown>;
+                        } = JSON.parse(line.slice(6));
 
-                    if (event.type === "tool_call" && event.tool) { setActiveTool(event.tool); toolsMade.push(event.tool); }
-                    if (event.type === "token" && event.content) { accumulated += event.content; setStreamingText(accumulated); }
-                    if (event.type === "interrupt" && event.content) {
-                        setInterrupt({ question: event.content, details: event.details ?? {} });
-                        setActiveTool(null); setLoading(false); setStreamingText("");
-                        return;
-                    }
-                    if (event.type === "done") {
-                        setActiveTool(null); setStreamingText("");
-                        if (accumulated) setMessages((prev) => [...prev, { id: uuid(), role: "assistant", content: accumulated, toolCalls: toolsMade, createdAt: new Date() }]);
-                    }
-                    if (event.type === "error") {
-                        setActiveTool(null); setStreamingText("");
-                        setMessages((prev) => [...prev, { id: uuid(), role: "assistant", content: `⚠ ${event.message}`, toolCalls: [], createdAt: new Date() }]);
+                        if (event.type === "tool_call" && event.tool) {
+                            setActiveTool(event.tool);
+                            toolsMade.push(event.tool);
+                        }
+                        if (event.type === "token" && event.content) {
+                            accumulated += event.content;
+                            setStreamingText(accumulated);
+                        }
+                        if (event.type === "interrupt" && event.content) {
+                            setInterrupt({
+                                question: event.content,
+                                details: event.details ?? {},
+                            });
+                            setActiveTool(null);
+                            setLoading(false);
+                            setStreamingText("");
+                            return;
+                        }
+                        if (event.type === "done") {
+                            setActiveTool(null);
+                            setStreamingText("");
+                            if (accumulated)
+                                setMessages((prev) => [
+                                    ...prev,
+                                    {
+                                        id: uuid(),
+                                        role: "assistant",
+                                        content: accumulated,
+                                        toolCalls: toolsMade,
+                                        createdAt: new Date(),
+                                    },
+                                ]);
+                        }
+                        if (event.type === "error") {
+                            setActiveTool(null);
+                            setStreamingText("");
+                            setMessages((prev) => [
+                                ...prev,
+                                {
+                                    id: uuid(),
+                                    role: "assistant",
+                                    content: `⚠ ${event.message}`,
+                                    toolCalls: [],
+                                    createdAt: new Date(),
+                                },
+                            ]);
+                        }
                     }
                 }
+            } catch {
+                setMessages((prev) => [
+                    ...prev,
+                    {
+                        id: uuid(),
+                        role: "assistant",
+                        content: "⚠ Connection error. Please try again.",
+                        toolCalls: [],
+                        createdAt: new Date(),
+                    },
+                ]);
             }
-        } catch {
-            setMessages((prev) => [...prev, { id: uuid(), role: "assistant", content: "⚠ Connection error. Please try again.", toolCalls: [], createdAt: new Date() }]);
-        }
-        setLoading(false);
-    }, [threadId]);
+            setLoading(false);
+        },
+        [threadId],
+    );
 
-    const sendMessage = useCallback((text?: string) => {
-        const content = text ?? input.trim();
-        if (!content || loading) return;
-        setInput("");
-        setMessages((prev) => [...prev, { id: uuid(), role: "user", content, toolCalls: [], createdAt: new Date() }]);
-        streamRequest({ message: content });
-    }, [input, loading, streamRequest]);
+    const sendMessage = useCallback(
+        (text?: string) => {
+            const content = text ?? input.trim();
+            if (!content || loading) return;
+            setInput("");
+            setMessages((prev) => [
+                ...prev,
+                {
+                    id: uuid(),
+                    role: "user",
+                    content,
+                    toolCalls: [],
+                    createdAt: new Date(),
+                },
+            ]);
+            streamRequest({ message: content });
+        },
+        [input, loading, streamRequest],
+    );
 
-    const respondToInterrupt = useCallback((confirmed: boolean) => {
-        setMessages((prev) => [...prev, { id: uuid(), role: "user", content: confirmed ? "✓ Yes, go ahead" : "✗ Cancel", toolCalls: [], createdAt: new Date() }]);
-        setInterrupt(null);
-        setInterruptLoading(confirmed);
-        streamRequest({ resume: confirmed }).finally(() => setInterruptLoading(false));
-    }, [streamRequest]);
+    const respondToInterrupt = useCallback(
+        (confirmed: boolean) => {
+            setMessages((prev) => [
+                ...prev,
+                {
+                    id: uuid(),
+                    role: "user",
+                    content: confirmed ? "✓ Yes, go ahead" : "✗ Cancel",
+                    toolCalls: [],
+                    createdAt: new Date(),
+                },
+            ]);
+            setInterrupt(null);
+            setInterruptLoading(confirmed);
+            streamRequest({ resume: confirmed }).finally(() =>
+                setInterruptLoading(false),
+            );
+        },
+        [streamRequest],
+    );
 
     if (initialLoad) {
         return (
             <div className="flex h-full">
                 <ModernChatSidebar />
-                <div className="flex-1 flex items-center justify-center" style={{ background: "var(--bg)" }}>
+                <div
+                    className="flex-1 flex items-center justify-center"
+                    style={{ background: "var(--bg)" }}
+                >
                     <Spinner className="w-5 h-5" />
                 </div>
             </div>
@@ -134,9 +223,19 @@ export default function ChatThreadPage() {
                         <SuggestionGrid onSelect={(t) => sendMessage(t)} />
                     ) : (
                         <div className="max-w-2xl mx-auto px-6 py-8 space-y-6">
-                            {messages.map((msg) => <ChatMessage key={msg.id} message={msg} />)}
+                            {messages.map((msg) => (
+                                <ChatMessage key={msg.id} message={msg} />
+                            ))}
                             {streamingText && (
-                                <ChatMessage message={{ id: "streaming", role: "assistant", content: streamingText + "▋", toolCalls: [], createdAt: new Date() }} />
+                                <ChatMessage
+                                    message={{
+                                        id: "streaming",
+                                        role: "assistant",
+                                        content: streamingText + "▋",
+                                        toolCalls: [],
+                                        createdAt: new Date(),
+                                    }}
+                                />
                             )}
                             {activeTool && <ToolIndicator tool={activeTool} />}
                             {interrupt && (
@@ -153,14 +252,24 @@ export default function ChatThreadPage() {
                     )}
                 </div>
 
-                <div className="border-t px-6 py-4" style={{ background: "var(--bg-1)", borderColor: "var(--border)" }}>
+                <div
+                    className="border-t px-6 py-4"
+                    style={{
+                        background: "var(--bg-1)",
+                        borderColor: "var(--border)",
+                    }}
+                >
                     <div className="max-w-2xl mx-auto">
                         <ChatInput
                             value={input}
                             onChange={setInput}
                             onSend={() => sendMessage()}
                             disabled={loading || !!interrupt}
-                            placeholder={interrupt ? "Respond to the confirmation above…" : "Ask SmartDesk anything…"}
+                            placeholder={
+                                interrupt
+                                    ? "Respond to the confirmation above…"
+                                    : "Ask SmartDesk anything…"
+                            }
                         />
                     </div>
                 </div>

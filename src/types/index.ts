@@ -18,13 +18,28 @@ declare module "next-auth" {
     }
 }
 
-export type IntegrationProvider = "google" | "slack" | "zoom" | "github" | "todoist";
+export type IntegrationProvider =
+    | "google"
+    | "slack"
+    | "zoom"
+    | "github"
+    | "todoist";
 
 export interface DashboardStats {
     totalThreads: number;
     totalMessages: number;
-    integrations: { provider: string; connected: boolean; teamName?: string | null }[];
-    recentThreads: { id: string; title: string; updatedAt: Date; messageCount?: number; lastMessage?: string }[];
+    integrations: {
+        provider: string;
+        connected: boolean;
+        teamName?: string | null;
+    }[];
+    recentThreads: {
+        id: string;
+        title: string;
+        updatedAt: Date;
+        messageCount?: number;
+        lastMessage?: string;
+    }[];
 }
 
 export interface ChatThread {

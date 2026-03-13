@@ -16,9 +16,14 @@ export const authOptions: NextAuthOptions = {
             async authorize(credentials) {
                 if (!credentials?.email || !credentials?.password) return null;
                 try {
-                    const user = await prisma.user.findUnique({ where: { email: credentials.email } });
+                    const user = await prisma.user.findUnique({
+                        where: { email: credentials.email },
+                    });
                     if (!user?.password) return null;
-                    const valid = await bcrypt.compare(credentials.password, user.password);
+                    const valid = await bcrypt.compare(
+                        credentials.password,
+                        user.password,
+                    );
                     if (!valid) return null;
                     return { id: user.id, email: user.email, name: user.name };
                 } catch (err) {
@@ -33,8 +38,12 @@ export const authOptions: NextAuthOptions = {
             authorization: {
                 params: {
                     scope: [
-                        "openid", "email", "profile",
+                        "openid",
+                        "email",
+                        "profile",
                         "https://www.googleapis.com/auth/gmail.readonly",
+                        "https://www.googleapis.com/auth/gmail.send",
+                        "https://www.googleapis.com/auth/gmail.modify",
                         "https://www.googleapis.com/auth/calendar",
                         "https://www.googleapis.com/auth/calendar.events",
                     ].join(" "),
@@ -50,14 +59,36 @@ export const authOptions: NextAuthOptions = {
                 try {
                     const dbUser = await prisma.user.upsert({
                         where: { email: user.email },
-                        create: { email: user.email, name: user.name ?? null, image: user.image ?? null },
-                        update: { name: user.name ?? undefined, image: user.image ?? undefined },
+                        create: {
+                            email: user.email,
+                            name: user.name ?? null,
+                            image: user.image ?? null,
+                        },
+                        update: {
+                            name: user.name ?? undefined,
+                            image: user.image ?? undefined,
+                        },
                     });
                     if (account.access_token) {
                         await prisma.integration.upsert({
-                            where: { userId_provider: { userId: dbUser.id, provider: "google" } },
-                            create: { userId: dbUser.id, provider: "google", accessToken: account.access_token, refreshToken: account.refresh_token ?? null, scope: account.scope ?? null },
-                            update: { accessToken: account.access_token, refreshToken: account.refresh_token ?? null, scope: account.scope ?? null },
+                            where: {
+                                userId_provider: {
+                                    userId: dbUser.id,
+                                    provider: "google",
+                                },
+                            },
+                            create: {
+                                userId: dbUser.id,
+                                provider: "google",
+                                accessToken: account.access_token,
+                                refreshToken: account.refresh_token ?? null,
+                                scope: account.scope ?? null,
+                            },
+                            update: {
+                                accessToken: account.access_token,
+                                refreshToken: account.refresh_token ?? null,
+                                scope: account.scope ?? null,
+                            },
                         });
                     }
                     user.id = dbUser.id;
@@ -70,9 +101,15 @@ export const authOptions: NextAuthOptions = {
         },
         async jwt({ token, user, account }) {
             if (user?.id) token.userId = user.id;
-            if (account?.provider === "google" && !token.userId && token.email) {
+            if (
+                account?.provider === "google" &&
+                !token.userId &&
+                token.email
+            ) {
                 try {
-                    const dbUser = await prisma.user.findUnique({ where: { email: token.email as string } });
+                    const dbUser = await prisma.user.findUnique({
+                        where: { email: token.email as string },
+                    });
                     if (dbUser) token.userId = dbUser.id;
                 } catch (err) {
                     console.error("[jwt] DB lookup error:", err);
@@ -86,7 +123,11 @@ export const authOptions: NextAuthOptions = {
                 try {
                     const integrations = await prisma.integration.findMany({
                         where: { userId: session.userId },
-                        select: { provider: true, accessToken: true, teamName: true },
+                        select: {
+                            provider: true,
+                            accessToken: true,
+                            teamName: true,
+                        },
                     });
                     for (const i of integrations) {
                         switch (i.provider) {
@@ -105,7 +146,8 @@ export const authOptions: NextAuthOptions = {
                             case "github":
                                 session.githubAccessToken = i.accessToken;
                                 session.hasGithub = true;
-                                session.githubUsername = i.teamName ?? undefined;
+                                session.githubUsername =
+                                    i.teamName ?? undefined;
                                 break;
                             case "todoist":
                                 session.todoistAccessToken = i.accessToken;
@@ -114,10 +156,14 @@ export const authOptions: NextAuthOptions = {
                                 break;
                         }
                     }
-                    if (!integrations.find(i => i.provider === "slack"))   session.hasSlack   = false;
-                    if (!integrations.find(i => i.provider === "zoom"))    session.hasZoom    = false;
-                    if (!integrations.find(i => i.provider === "github"))  session.hasGithub  = false;
-                    if (!integrations.find(i => i.provider === "todoist")) session.hasTodoist = false;
+                    if (!integrations.find((i) => i.provider === "slack"))
+                        session.hasSlack = false;
+                    if (!integrations.find((i) => i.provider === "zoom"))
+                        session.hasZoom = false;
+                    if (!integrations.find((i) => i.provider === "github"))
+                        session.hasGithub = false;
+                    if (!integrations.find((i) => i.provider === "todoist"))
+                        session.hasTodoist = false;
                 } catch (err) {
                     console.error("[session] DB error:", err);
                 }

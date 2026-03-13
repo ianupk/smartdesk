@@ -3,6 +3,7 @@
 An AI agent that connects Gmail, Google Calendar, and Slack via natural language.
 
 ## Stack
+
 - **Frontend**: Next.js 15 + TypeScript
 - **AI**: Any free AI provider
 - **Auth**: NextAuth.js (Google + Slack OAuth)
@@ -13,13 +14,13 @@ An AI agent that connects Gmail, Google Calendar, and Slack via natural language
 
 ## 💬 Example Prompts
 
-| Prompt | What happens |
-|--------|-------------|
-| "Summarize my last 5 emails" | Reads Gmail, AI summarizes each |
-| "What's on my calendar this week?" | Lists upcoming events |
+| Prompt                               | What happens                    |
+| ------------------------------------ | ------------------------------- |
+| "Summarize my last 5 emails"         | Reads Gmail, AI summarizes each |
+| "What's on my calendar this week?"   | Lists upcoming events           |
 | "Schedule a standup tomorrow at 9am" | Checks conflicts, creates event |
-| "Tell #general about the standup" | Posts formatted announcement |
-| "Emails about the Q3 budget?" | Gmail search + AI summary |
+| "Tell #general about the standup"    | Posts formatted announcement    |
+| "Emails about the Q3 budget?"        | Gmail search + AI summary       |
 
 ---
 
