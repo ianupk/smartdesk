@@ -60,6 +60,7 @@ import {
     moveTaskTool,
 } from "./tools/todoist";
 
+import { webSearchTool, searchNewsTool } from "./tools/tavily";
 // ── Tool registry ─────────────────────────────────────────────────────────────
 // Total tools: 21 (down from 38) — comfortably within free-tier LLM limits
 export const TOOL_GROUPS = {
@@ -103,6 +104,7 @@ export const TOOL_GROUPS = {
         deleteTaskTool,
         moveTaskTool,
     ],
+    tavily: [webSearchTool, searchNewsTool],
 } as const;
 
 export const ALL_TOOLS = Object.values(TOOL_GROUPS).flat();
@@ -167,6 +169,7 @@ export function getActiveTools(config?: RunnableConfig) {
     if (c.zoomAccessToken) tools.push(...TOOL_GROUPS.zoom);
     if (c.githubAccessToken) tools.push(...TOOL_GROUPS.github);
     if (c.todoistAccessToken) tools.push(...TOOL_GROUPS.todoist);
+    if (process.env.TAVILY_API_KEY) tools.push(...TOOL_GROUPS.tavily);
 
     return tools;
 }
@@ -200,6 +203,8 @@ function buildSystemPrompt(
         connected.push(
             "Todoist: list_todoist_tasks, create_todoist_task, complete_todoist_task, update_todoist_task, delete_todoist_task, move_todoist_task, list_todoist_projects",
         );
+    if (names.has("web_search"))
+        connected.push("Tavily: web_search, search_news");
 
     const toolSection = connected.length
         ? connected.map((s) => `- ${s}`).join("\n")
