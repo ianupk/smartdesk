@@ -7,60 +7,6 @@ import { DashboardHeader } from "@/components/dashboard/DashboardHeader";
 import { Spinner } from "@/components/ui/Spinner";
 import type { DashboardStats } from "@/types";
 
-function Modal({
-    title,
-    icon,
-    children,
-    onClose,
-}: {
-    title: string;
-    icon: React.ReactNode;
-    children: React.ReactNode;
-    onClose: () => void;
-}) {
-    return (
-        <div
-            className="fixed inset-0 z-50 flex items-center justify-center p-4"
-            style={{ background: "rgba(0,0,0,0.7)" }}
-            onClick={onClose}
-        >
-            <div
-                className="w-full max-w-md rounded-2xl p-6 shadow-2xl"
-                style={{
-                    background: "var(--bg-1)",
-                    border: "1px solid var(--border)",
-                }}
-                onClick={(e) => e.stopPropagation()}
-            >
-                <div className="flex items-center gap-3 mb-5">
-                    <div
-                        className="w-9 h-9 rounded-xl flex items-center justify-center shrink-0"
-                        style={{ background: "#DB4035" }}
-                    >
-                        {icon}
-                    </div>
-                    <p
-                        className="font-semibold text-sm"
-                        style={{ color: "var(--text)" }}
-                    >
-                        {title}
-                    </p>
-                    <button
-                        onClick={onClose}
-                        className="ml-auto w-7 h-7 flex items-center justify-center rounded-lg text-sm transition-colors"
-                        style={{
-                            color: "var(--text-3)",
-                            background: "var(--bg-3)",
-                        }}
-                    >
-                        &times;
-                    </button>
-                </div>
-                {children}
-            </div>
-        </div>
-    );
-}
 
 const INT_DEFS = [
     {
@@ -202,6 +148,13 @@ const INT_DEFS = [
                 />
             </svg>
         ),
+        onConnect: () => {
+            window.location.href = "/api/todoist-connect?action=connect";
+        },
+        onDisconnect: () => {
+            if (confirm("Disconnect Todoist?"))
+                window.location.href = "/api/todoist-connect?action=disconnect";
+        },
     },
 ];
 
@@ -212,10 +165,6 @@ export default function DashboardPage() {
     const [stats, setStats] = useState<DashboardStats | null>(null);
     const [loading, setLoading] = useState(true);
     const [newChatLoading, setNewChatLoading] = useState(false);
-    const [showTodoistModal, setShowTodoistModal] = useState(false);
-    const [todoistToken, setTodoistToken] = useState("");
-    const [todoistLoading, setTodoistLoading] = useState(false);
-    const [todoistError, setTodoistError] = useState("");
     const [toast, setToast] = useState<string | null>(null);
 
     const sp = (k: string) => searchParams?.get(k);
@@ -235,12 +184,25 @@ export default function DashboardPage() {
         refreshStats().finally(() => setLoading(false));
         if (sp("slack_success") === "1")
             setToast("Slack connected to " + (sp("team") ?? "workspace"));
+        if (sp("slack_success") === "disconnected")
+            setToast("Slack disconnected.");
+        if (sp("slack_error")) setToast("Slack error: " + sp("slack_error"));
         if (sp("zoom_success") === "1")
             setToast("Zoom connected as " + (sp("name") ?? "Zoom Account"));
+        if (sp("zoom_success") === "disconnected")
+            setToast("Zoom disconnected.");
         if (sp("github_success") === "1")
             setToast("GitHub connected as @" + (sp("username") ?? "user"));
+        if (sp("github_success") === "disconnected")
+            setToast("GitHub disconnected.");
+        if (sp("todoist_success") === "1")
+            setToast("Todoist connected as " + (sp("name") ?? "user"));
+        if (sp("todoist_success") === "disconnected")
+            setToast("Todoist disconnected.");
         if (sp("zoom_error")) setToast("Zoom error: " + sp("zoom_error"));
         if (sp("github_error")) setToast("GitHub error: " + sp("github_error"));
+        if (sp("slack_error")) setToast("Slack error: " + sp("slack_error"));
+        if (sp("todoist_error")) setToast("Todoist error: " + sp("todoist_error"));
     }, [status]);
 
     const newChat = async () => {
@@ -254,48 +216,6 @@ export default function DashboardPage() {
         } finally {
             setNewChatLoading(false);
         }
-    };
-
-    const handleTodoistConnect = async () => {
-        if (!todoistToken.trim()) {
-            setTodoistError("Please paste your API token.");
-            return;
-        }
-        setTodoistLoading(true);
-        setTodoistError("");
-        try {
-            const res = await fetch("/api/todoist-connect", {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({
-                    action: "connect",
-                    token: todoistToken.trim(),
-                }),
-            });
-            const data = await res.json();
-            if (!res.ok || data.error) {
-                setTodoistError(data.error ?? "Connection failed.");
-            } else {
-                setShowTodoistModal(false);
-                setTodoistToken("");
-                setToast("Todoist connected as " + (data.fullName ?? "user"));
-                await refreshStats();
-            }
-        } catch {
-            setTodoistError("Network error.");
-        } finally {
-            setTodoistLoading(false);
-        }
-    };
-
-    const disconnectTodoist = async () => {
-        if (!confirm("Disconnect Todoist?")) return;
-        await fetch("/api/todoist-connect", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ action: "disconnect" }),
-        });
-        await refreshStats();
     };
 
     if (status === "loading")
@@ -339,82 +259,6 @@ export default function DashboardPage() {
             style={{ background: "var(--bg)" }}
         >
             <DashboardHeader />
-
-            {showTodoistModal && (
-                <Modal
-                    title="Connect Todoist"
-                    icon={
-                        <svg viewBox="0 0 24 24" className="w-5 h-5">
-                            <path
-                                d="M6 8.5l2.5 2.5L14 5M6 12.5l2.5 2.5L14 9M6 16.5l2.5 2.5L14 13"
-                                stroke="#fff"
-                                strokeWidth="2"
-                                strokeLinecap="round"
-                                strokeLinejoin="round"
-                                fill="none"
-                            />
-                        </svg>
-                    }
-                    onClose={() => setShowTodoistModal(false)}
-                >
-                    <p
-                        className="text-xs mb-3"
-                        style={{ color: "var(--text-2)" }}
-                    >
-                        Get your token at{" "}
-                        <a
-                            href="https://app.todoist.com/app/settings/integrations/developer"
-                            target="_blank"
-                            className="underline"
-                            style={{ color: "var(--accent)" }}
-                        >
-                            Todoist Settings
-                        </a>
-                    </p>
-                    <div className="space-y-3">
-                        <input
-                            type="password"
-                            value={todoistToken}
-                            onChange={(e) => {
-                                setTodoistToken(e.target.value);
-                                setTodoistError("");
-                            }}
-                            onKeyDown={(e) =>
-                                e.key === "Enter" && handleTodoistConnect()
-                            }
-                            placeholder="Your 40-character Todoist API token"
-                            className="w-full rounded-xl px-3 py-2.5 text-sm font-mono outline-none"
-                            style={{
-                                background: "var(--bg-2)",
-                                border: "1px solid var(--border)",
-                                color: "var(--text)",
-                            }}
-                        />
-                        {todoistError && (
-                            <p
-                                className="text-xs px-3 py-2 rounded-lg"
-                                style={{
-                                    color: "#ef4444",
-                                    background: "rgba(239,68,68,0.08)",
-                                    border: "1px solid rgba(239,68,68,0.2)",
-                                }}
-                            >
-                                {todoistError}
-                            </p>
-                        )}
-                        <button
-                            onClick={handleTodoistConnect}
-                            disabled={todoistLoading}
-                            className="w-full py-2 rounded-xl text-sm font-medium text-white disabled:opacity-50"
-                            style={{ background: "var(--accent)" }}
-                        >
-                            {todoistLoading
-                                ? "Connecting..."
-                                : "Connect Todoist"}
-                        </button>
-                    </div>
-                </Modal>
-            )}
 
             <div className="flex-1 overflow-y-auto">
                 <div className="max-w-3xl mx-auto px-8 py-10">
@@ -524,15 +368,8 @@ export default function DashboardPage() {
                                                 : (teamName(int.id) ??
                                                   "Connected")
                                             : int.sub;
-                                        const handleConnect =
-                                            int.id === "todoist"
-                                                ? () =>
-                                                      setShowTodoistModal(true)
-                                                : int.onConnect;
-                                        const handleDisconnect =
-                                            int.id === "todoist"
-                                                ? disconnectTodoist
-                                                : int.onDisconnect;
+                                        const handleConnect = int.onConnect;
+                                        const handleDisconnect = int.onDisconnect;
 
                                         return (
                                             <div

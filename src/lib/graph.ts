@@ -18,7 +18,6 @@ import { getCheckpointer } from "./checkpointer";
 
 // ── Tool imports ──────────────────────────────────────────────────────────────
 // GitHub: kept to 1 tool (list repos) — enough to demo, won't overwhelm LLM
-// Tavily (web search): removed — saves ~2 tool slots, prototype doesn't need it
 import {
     listEmailsTool,
     getEmailBodyTool,
@@ -273,6 +272,7 @@ function getIntegrationKey(config?: RunnableConfig): string {
     const c = config?.configurable ?? {};
     return (
         [
+            "w", // Tavily always present
             c.googleAccessToken ? "g" : "",
             c.slackAccessToken ? "s" : "",
             c.zoomAccessToken ? "z" : "",

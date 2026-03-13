@@ -1,22 +1,18 @@
 /**
- * Slack Integration Handler
+ * Slack OAuth 2.0 Integration
  *
- * Architecture decision: Bot Token approach (not OAuth)
+ * Flow:
+ *   1. GET /api/slack-connect?action=connect    → redirect to Slack OAuth consent
+ *   2. Slack redirects to /api/slack-callback?code=...
+ *   3. Callback exchanges code for per-user token, saves to Integration table
+ *   4. Redirects to /dashboard?slack_success=1
  *
- * WHY NOT OAuth for localhost:
- *   - Slack OAuth requires HTTPS redirect URIs
- *   - localhost is HTTP → Slack rejects it completely
- *   - Even ngrok works but adds setup friction
+ * Setup in api.slack.com/apps → OAuth & Permissions:
+ *   Redirect URLs: https://<your-cloudflare>.trycloudflare.com/api/slack-callback  (dev)
+ *                  https://yourapp.vercel.app/api/slack-callback                   (prod)
  *
- * HOW THIS WORKS:
- *   1. User creates a Slack App and gets a Bot Token (xoxb-...)
- *   2. They add SLACK_BOT_TOKEN to .env.local
- *   3. Click "Connect Slack" → this route validates the token via auth.test
- *   4. Token is saved to Integration table tied to the user
- *   5. Session callback reads it → attaches to every request
- *   6. Slack tools receive it via LangGraph config.configurable
- *
- * For production with real OAuth, see the /api/slack-oauth route (separate file).
+ * Bot Token Scopes needed:
+ *   channels:read, channels:history, chat:write, users:read
  */
 
 import { NextRequest, NextResponse } from "next/server";
@@ -26,96 +22,37 @@ import { prisma } from "@/lib/prisma";
 
 export async function GET(req: NextRequest) {
     const session = await getServerSession(authOptions);
-    if (!session?.userId) {
+    if (!session?.userId)
         return NextResponse.redirect(new URL("/login", req.url));
-    }
 
-    const { searchParams } = new URL(req.url);
-    const action = searchParams.get("action");
+    const action = new URL(req.url).searchParams.get("action");
 
     if (action === "connect") {
-        const token = process.env.SLACK_BOT_TOKEN;
-
-        if (!token) {
+        const clientId = process.env.SLACK_CLIENT_ID;
+        if (!clientId) {
             return NextResponse.redirect(
-                new URL("/dashboard?slack_error=missing_token", req.url),
+                new URL("/dashboard?slack_error=missing_config", req.url),
             );
         }
 
-        if (!token.startsWith("xoxb-") && !token.startsWith("xoxp-")) {
-            return NextResponse.redirect(
-                new URL("/dashboard?slack_error=invalid_token_format", req.url),
-            );
-        }
+        // Encode userId in state so callback knows which user to save token for
+        const state = Buffer.from(
+            JSON.stringify({ userId: session.userId }),
+        ).toString("base64url");
 
-        try {
-            // Validate token against Slack API
-            const testRes = await fetch("https://slack.com/api/auth.test", {
-                method: "POST",
-                headers: {
-                    Authorization: `Bearer ${token}`,
-                    "Content-Type": "application/json",
-                },
-            });
+        const redirectUri = `${process.env.NEXTAUTH_URL}/api/slack-callback`;
 
-            if (!testRes.ok) {
-                throw new Error(`HTTP ${testRes.status} from Slack API`);
-            }
+        const authUrl = new URL("https://slack.com/oauth/v2/authorize");
+        authUrl.searchParams.set("client_id", clientId);
+        authUrl.searchParams.set("redirect_uri", redirectUri);
+        authUrl.searchParams.set("state", state);
+        // Bot Token Scopes — must exactly match what's configured in api.slack.com/apps
+        authUrl.searchParams.set(
+            "scope",
+            "channels:read,channels:history,chat:write,users:read",
+        );
 
-            const testData = await testRes.json();
-
-            if (!testData.ok) {
-                const errCode = testData.error ?? "unknown_error";
-                return NextResponse.redirect(
-                    new URL(
-                        `/dashboard?slack_error=${encodeURIComponent(errCode)}`,
-                        req.url,
-                    ),
-                );
-            }
-
-            // Save token to Integration table — session callback will pick it up
-            await prisma.integration.upsert({
-                where: {
-                    userId_provider: {
-                        userId: session.userId,
-                        provider: "slack",
-                    },
-                },
-                create: {
-                    userId: session.userId,
-                    provider: "slack",
-                    accessToken: token,
-                    teamId: testData.team_id ?? null,
-                    teamName: testData.team ?? "Slack Workspace",
-                },
-                update: {
-                    accessToken: token,
-                    teamId: testData.team_id ?? null,
-                    teamName: testData.team ?? "Slack Workspace",
-                },
-            });
-
-            console.log(
-                "[slack-connect] Saved token for workspace:",
-                testData.team,
-            );
-
-            return NextResponse.redirect(
-                new URL(
-                    `/dashboard?slack_success=1&team=${encodeURIComponent(testData.team ?? "Slack")}`,
-                    req.url,
-                ),
-            );
-        } catch (err) {
-            console.error("[slack-connect] Error:", err);
-            return NextResponse.redirect(
-                new URL(
-                    `/dashboard?slack_error=${encodeURIComponent((err as Error).message)}`,
-                    req.url,
-                ),
-            );
-        }
+        return NextResponse.redirect(authUrl.toString());
     }
 
     if (action === "disconnect") {
@@ -127,7 +64,7 @@ export async function GET(req: NextRequest) {
                 new URL("/dashboard?slack_success=disconnected", req.url),
             );
         } catch (err) {
-            console.error("[slack-connect] Disconnect error:", err);
+            console.error("[slack-connect] disconnect error:", err);
             return NextResponse.redirect(new URL("/dashboard", req.url));
         }
     }
