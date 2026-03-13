@@ -1,6 +1,7 @@
 import { redirect } from "next/navigation";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
+import { KeyboardShortcuts } from "@/components/layout/KeyboardShortcuts";
 
 export default async function AppLayout({
     children,
@@ -10,5 +11,10 @@ export default async function AppLayout({
     const session = await getServerSession(authOptions);
     if (!session) redirect("/login");
 
-    return <>{children}</>;
+    return (
+        <>
+            <KeyboardShortcuts />
+            {children}
+        </>
+    );
 }

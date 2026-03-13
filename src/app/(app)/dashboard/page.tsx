@@ -297,7 +297,15 @@ export default function DashboardPage() {
                             className="px-4 py-2 rounded-xl text-sm font-medium text-white disabled:opacity-50 transition-opacity"
                             style={{ background: "var(--accent)" }}
                         >
-                            {newChatLoading ? "Creating..." : "New Chat"}
+                            {newChatLoading ? "Creating..." : (
+                                <>
+                                    New Chat
+                                    <kbd className="ml-2 px-1.5 py-0.5 rounded text-[0.6rem] font-mono opacity-60"
+                                        style={{ background: "rgba(255,255,255,0.15)", border: "1px solid rgba(255,255,255,0.2)" }}>
+                                        ⌘K
+                                    </kbd>
+                                </>
+                            )}
                         </button>
                     </div>
 
