@@ -1,69 +1,83 @@
-import { Button } from "@/components/ui/Button";
+"use client";
 import { cn } from "@/lib/utils";
 
 interface IntegrationCardProps {
     name: string;
     description: string;
-    icon: string;
-    connected: boolean;
     detail?: string;
+    connected: boolean;
+    logo?: React.ReactNode;
     onConnect?: () => void;
-    connectLabel?: string;
+    onDisconnect?: () => void;
+    className?: string;
 }
 
 export function IntegrationCard({
-    name,
-    description,
-    icon,
-    connected,
-    detail,
-    onConnect,
-    connectLabel,
+    name, description, detail, connected,
+    logo, onConnect, onDisconnect, className,
 }: IntegrationCardProps) {
     return (
         <div
-            className={cn(
-                "card p-5 flex items-start gap-4",
-                connected && "border-success/20 bg-success/5",
-            )}
+            className={cn("flex items-center gap-4 px-5 py-4 rounded-2xl transition-all duration-100", className)}
+            style={{ background: "var(--bg-1)", border: "1px solid var(--border)" }}
+            onMouseEnter={e => { (e.currentTarget as HTMLElement).style.background = "var(--bg-2)"; }}
+            onMouseLeave={e => { (e.currentTarget as HTMLElement).style.background = "var(--bg-1)"; }}
         >
-            <div className="w-10 h-10 rounded-xl bg-surface-3 border border-border flex items-center justify-center text-xl shrink-0">
-                {icon}
+            {/* Logo */}
+            <div
+                className="w-10 h-10 rounded-xl flex items-center justify-center text-xl shrink-0"
+                style={{
+                    background: "var(--bg-3)",
+                    border: "1px solid var(--border)",
+                    opacity: connected ? 1 : 0.35,
+                    filter: connected ? "none" : "grayscale(1)",
+                }}
+            >
+                {logo}
             </div>
+
+            {/* Name + description */}
             <div className="flex-1 min-w-0">
-                <div className="flex items-center gap-2 mb-1">
-                    <h3 className="text-sm font-semibold text-ink">{name}</h3>
-                    <span
-                        className={cn(
-                            "inline-flex items-center gap-1 text-[0.65rem] font-mono px-1.5 py-0.5 rounded border",
-                            connected
-                                ? "bg-success/10 border-success/30 text-success"
-                                : "bg-surface-3 border-border text-ink-muted",
-                        )}
-                    >
-                        <span
-                            className={cn(
-                                "w-1 h-1 rounded-full",
-                                connected ? "bg-success" : "bg-muted-dim",
-                            )}
-                        />
-                        {connected ? "Connected" : "Not connected"}
-                    </span>
-                </div>
-                <p className="text-xs text-ink-muted">{description}</p>
-                {detail && (
-                    <p className="text-xs text-ink-dim mt-1">{detail}</p>
-                )}
+                <h3 className="text-sm font-semibold" style={{ color: "var(--text)" }}>{name}</h3>
+                <p className="text-xs mt-0.5 truncate" style={{ color: "var(--text-3)" }}>{description}</p>
+                {detail && <p className="text-xs mt-0.5 truncate" style={{ color: "var(--text-3)" }}>{detail}</p>}
             </div>
-            {!connected && onConnect && (
-                <Button
-                    variant="secondary"
-                    size="sm"
-                    onClick={onConnect}
-                    className="shrink-0"
+
+            {/* Status button */}
+            {connected ? (
+                <button
+                    onClick={onDisconnect}
+                    className="shrink-0 text-xs font-medium px-3 py-1.5 rounded-lg transition-all duration-150"
+                    style={{
+                        background: "rgba(34,197,94,0.10)",
+                        border: "1px solid rgba(34,197,94,0.25)",
+                        color: "#22c55e",
+                    }}
+                    onMouseEnter={e => {
+                        (e.currentTarget as HTMLElement).style.background = "rgba(239,68,68,0.1)";
+                        (e.currentTarget as HTMLElement).style.borderColor = "rgba(239,68,68,0.25)";
+                        (e.currentTarget as HTMLElement).style.color = "#ef4444";
+                        (e.currentTarget as HTMLElement).textContent = "Disconnect";
+                    }}
+                    onMouseLeave={e => {
+                        (e.currentTarget as HTMLElement).style.background = "rgba(34,197,94,0.10)";
+                        (e.currentTarget as HTMLElement).style.borderColor = "rgba(34,197,94,0.25)";
+                        (e.currentTarget as HTMLElement).style.color = "#22c55e";
+                        (e.currentTarget as HTMLElement).textContent = "Connected";
+                    }}
                 >
-                    {connectLabel ?? "Connect"}
-                </Button>
+                    Connected
+                </button>
+            ) : (
+                <button
+                    onClick={onConnect}
+                    className="shrink-0 text-xs font-semibold px-3 py-1.5 rounded-lg text-white transition-all duration-150"
+                    style={{ background: "linear-gradient(135deg, var(--accent), #f59e0b)" }}
+                    onMouseEnter={e => { (e.currentTarget as HTMLElement).style.boxShadow = "0 2px 12px var(--accent-glow)"; }}
+                    onMouseLeave={e => { (e.currentTarget as HTMLElement).style.boxShadow = ""; }}
+                >
+                    Connect
+                </button>
             )}
         </div>
     );

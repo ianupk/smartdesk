@@ -1,11 +1,19 @@
 import type { Metadata } from "next";
+import type { Viewport } from "next";
 import "@/styles/globals.css";
 import { Providers } from "./providers";
 
 export const metadata: Metadata = {
     title: { default: "SmartDesk", template: "%s · SmartDesk" },
-    description:
-        "AI productivity agent — Gmail, Calendar & Slack via LangGraph",
+    description: "AI productivity agent — Gmail, Calendar & Slack via LangGraph",
+};
+
+export const viewport: Viewport = {
+    width: "device-width",
+    initialScale: 1,
+    maximumScale: 1,
+    userScalable: false,
+    themeColor: "#0c0d11",
 };
 
 export default function RootLayout({

@@ -1,4 +1,4 @@
-@import url("https://fonts.googleapis.com/css2?family=Inter:ital,wght@0,300;0,400;0,500;0,600;0,700;1,400&family=JetBrains+Mono:wght@400;500&display=swap");
+@import url("https://fonts.googleapis.com/css2?family=Geist:wght@300;400;500;600;700&family=Geist+Mono:wght@400;500&display=swap");
 
 @tailwind base;
 @tailwind components;
@@ -7,18 +7,23 @@
 @layer base {
     :root {
         color-scheme: dark;
-        --bg: #0a0a0f;
-        --bg-1: #111118;
-        --bg-2: #18181f;
-        --bg-3: #1e1e27;
-        --border: #2a2a35;
-        --border-soft: #222230;
-        --text: #e8e8f0;
-        --text-2: #9090a8;
-        --text-3: #55556a;
-        --accent: #6366f1;
-        --accent-2: rgba(99, 102, 241, 0.12);
+        /* Deep slate-navy with warm amber accent — premium & distinctive */
+        --bg:      #0c0d11;
+        --bg-1:    #111318;
+        --bg-2:    #171a21;
+        --bg-3:    #1d2029;
+        --bg-4:    #242833;
+        --border:      rgba(255,255,255,0.07);
+        --border-soft: rgba(255,255,255,0.04);
+        --text:   #f0f1f5;
+        --text-2: #8b8fa8;
+        --text-3: #4a4f68;
+        --accent:     #d97706;   /* warm amber */
+        --accent-2:   rgba(217,119,6,0.10);
+        --accent-glow: rgba(217,119,6,0.18);
         --success: #22c55e;
+        --sidebar-w: 240px;
+        --sidebar-w-collapsed: 56px;
     }
 
     *,
@@ -32,21 +37,48 @@
         height: 100%;
         background: var(--bg);
         color: var(--text);
-        font-family: "Inter", sans-serif;
+        font-family: "Geist", system-ui, sans-serif;
         -webkit-font-smoothing: antialiased;
+        -moz-osx-font-smoothing: grayscale;
         scrollbar-width: thin;
-        scrollbar-color: var(--border) transparent;
+        scrollbar-color: rgba(255,255,255,0.08) transparent;
+        /* Mobile: prevent text size adjustment on orientation change */
+        -webkit-text-size-adjust: 100%;
+        text-size-adjust: 100%;
+        /* Remove tap highlight on mobile */
+        -webkit-tap-highlight-color: transparent;
+    }
+
+    /* Safe area insets for notched phones */
+    .safe-bottom {
+        padding-bottom: env(safe-area-inset-bottom);
+    }
+
+    /* Prevent scroll bounce on iOS from leaking */
+    #__next, html, body {
+        overscroll-behavior: none;
     }
 
     ::-webkit-scrollbar {
-        width: 4px;
+        width: 3px;
     }
     ::-webkit-scrollbar-track {
         background: transparent;
     }
     ::-webkit-scrollbar-thumb {
-        background: var(--border);
+        background: rgba(255,255,255,0.08);
         border-radius: 99px;
+    }
+
+    /* Premium button focus ring */
+    button:focus-visible {
+        outline: 2px solid var(--accent);
+        outline-offset: 2px;
+    }
+    a:focus-visible {
+        outline: 2px solid var(--accent);
+        outline-offset: 2px;
+        border-radius: 4px;
     }
 
     input:-webkit-autofill,
@@ -61,7 +93,7 @@
 @layer components {
     .prose-chat {
         font-size: 0.875rem;
-        line-height: 1.7;
+        line-height: 1.75;
         color: var(--text-2);
     }
     .prose-chat h1,
@@ -69,24 +101,15 @@
     .prose-chat h3 {
         font-weight: 600;
         color: var(--text);
-        margin-top: 1rem;
+        margin-top: 1.25rem;
         margin-bottom: 0.5rem;
+        letter-spacing: -0.01em;
     }
-    .prose-chat h1 {
-        font-size: 1.125rem;
-    }
-    .prose-chat h2 {
-        font-size: 1rem;
-    }
-    .prose-chat h3 {
-        font-size: 0.875rem;
-    }
-    .prose-chat p {
-        margin-bottom: 0.75rem;
-    }
-    .prose-chat p:last-child {
-        margin-bottom: 0;
-    }
+    .prose-chat h1 { font-size: 1.125rem; }
+    .prose-chat h2 { font-size: 1rem; }
+    .prose-chat h3 { font-size: 0.875rem; }
+    .prose-chat p { margin-bottom: 0.75rem; }
+    .prose-chat p:last-child { margin-bottom: 0; }
     .prose-chat ul {
         list-style: disc;
         padding-left: 1.25rem;
@@ -108,29 +131,33 @@
     .prose-chat a {
         color: var(--accent);
         text-decoration: underline;
+        text-underline-offset: 2px;
     }
     .prose-chat code {
-        font-family: "JetBrains Mono", monospace;
+        font-family: "Geist Mono", monospace;
         font-size: 0.8em;
         background: var(--bg-3);
-        color: #a5b4fc;
-        padding: 0.15em 0.4em;
-        border-radius: 4px;
+        color: #fbbf24;
+        padding: 0.15em 0.45em;
+        border-radius: 5px;
+        border: 1px solid rgba(255,255,255,0.06);
     }
     .prose-chat pre {
         background: var(--bg-3);
         border: 1px solid var(--border);
-        border-radius: 10px;
-        padding: 1rem;
+        border-radius: 12px;
+        padding: 1rem 1.25rem;
         overflow-x: auto;
         margin-bottom: 0.75rem;
     }
     .prose-chat pre code {
         background: transparent;
         padding: 0;
+        border: none;
+        color: var(--text-2);
     }
     .prose-chat blockquote {
-        border-left: 2px solid var(--border);
+        border-left: 2px solid var(--accent);
         padding-left: 1rem;
         color: var(--text-3);
         font-style: italic;
@@ -140,4 +167,44 @@
         border-color: var(--border);
         margin: 1rem 0;
     }
+
+    /* Smooth fade-in for new content */
+    @keyframes fadeSlideUp {
+        from { opacity: 0; transform: translateY(6px); }
+        to   { opacity: 1; transform: translateY(0); }
+    }
+    .animate-fade-up {
+        animation: fadeSlideUp 0.2s ease forwards;
+    }
+
+    /* Sidebar thread hover */
+    .thread-item {
+        transition: background 0.12s ease, color 0.12s ease;
+    }
+    .thread-item:hover {
+        background: var(--bg-3) !important;
+    }
+
+    /* Premium hover glow on icon buttons */
+    .icon-btn {
+        transition: background 0.15s ease, color 0.15s ease, box-shadow 0.15s ease;
+    }
+    .icon-btn:hover {
+        background: var(--bg-3) !important;
+        color: var(--text) !important;
+    }
+
+    /* Connect button pulse effect */
+    .btn-connect {
+        transition: background 0.15s ease, box-shadow 0.15s ease, transform 0.1s ease;
+    }
+    .btn-connect:hover {
+        box-shadow: 0 0 0 3px var(--accent-glow);
+        transform: translateY(-1px);
+    }
+    .btn-connect:active {
+        transform: translateY(0);
+    }
+
 }
+

@@ -5,9 +5,10 @@ const config: Config = {
     theme: {
         extend: {
             fontFamily: {
-                display: ["'Bricolage Grotesque'", "sans-serif"],
-                body: ["'DM Sans'", "sans-serif"],
-                mono: ["'JetBrains Mono'", "monospace"],
+                sans: ["'Geist'", "system-ui", "sans-serif"],
+                display: ["'Geist'", "system-ui", "sans-serif"],
+                body: ["'Geist'", "system-ui", "sans-serif"],
+                mono: ["'Geist Mono'", "monospace"],
             },
             colors: {
                 surface: {

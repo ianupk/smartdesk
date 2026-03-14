@@ -18,27 +18,41 @@ export function ChatMessage({ message }: { message: ChatMessageType }) {
     const isUser = message.role === "user";
 
     return (
-        <div className={cn("flex", isUser ? "justify-end" : "justify-start")}>
+        <div className={cn("flex animate-fade-up", isUser ? "justify-end" : "justify-start")}>
             <div className={cn("max-w-[82%] space-y-1.5", isUser && "items-end flex flex-col")}>
+                {/* Tool call pills */}
                 {!isUser && message.toolCalls && message.toolCalls.length > 0 && (
-                    <div className="flex flex-wrap gap-1.5 mb-1">
+                    <div className="flex flex-wrap gap-1.5 mb-1.5">
                         {[...new Set(message.toolCalls)].map((tool) => (
-                            <span key={tool} className="text-[0.65rem] px-2 py-0.5 rounded-full"
-                                style={{ background: "var(--bg-3)", color: "var(--text-3)", border: "1px solid var(--border)" }}>
+                            <span
+                                key={tool}
+                                className="text-[10px] font-medium px-2 py-0.5 rounded-full"
+                                style={{
+                                    background: "var(--bg-3)",
+                                    color: "var(--text-3)",
+                                    border: "1px solid var(--border)",
+                                }}
+                            >
                                 {TOOL_LABELS[tool] ?? tool.replace(/_/g, " ")}
                             </span>
                         ))}
                     </div>
                 )}
 
-                <div className={cn("px-4 py-3 rounded-2xl text-sm leading-relaxed")}
+                {/* Bubble */}
+                <div
+                    className={cn("px-4 py-3 rounded-2xl text-sm leading-relaxed")}
                     style={{
-                        background: isUser ? "var(--accent)" : "var(--bg-2)",
+                        background: isUser
+                            ? "linear-gradient(135deg, var(--accent), #f59e0b)"
+                            : "var(--bg-2)",
                         color: isUser ? "#fff" : "var(--text-2)",
                         border: isUser ? "none" : "1px solid var(--border)",
-                        borderBottomRightRadius: isUser ? "4px" : undefined,
-                        borderBottomLeftRadius: !isUser ? "4px" : undefined,
-                    }}>
+                        borderBottomRightRadius: isUser ? "5px" : undefined,
+                        borderBottomLeftRadius: !isUser ? "5px" : undefined,
+                        boxShadow: isUser ? "0 4px 16px var(--accent-glow)" : "none",
+                    }}
+                >
                     {isUser ? (
                         <p>{message.content}</p>
                     ) : (
@@ -48,7 +62,8 @@ export function ChatMessage({ message }: { message: ChatMessageType }) {
                     )}
                 </div>
 
-                <p className="text-[0.6rem] px-1" style={{ color: "var(--text-3)" }}>
+                {/* Timestamp */}
+                <p className="text-[10px] px-1" style={{ color: "var(--text-3)" }}>
                     {new Date(message.createdAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
                 </p>
             </div>

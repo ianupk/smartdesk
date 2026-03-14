@@ -202,12 +202,9 @@ export default function ChatThreadPage() {
 
     if (initialLoad) {
         return (
-            <div className="flex h-full">
+            <div className="flex flex-col h-full">
                 <ModernChatSidebar />
-                <div
-                    className="flex-1 flex items-center justify-center"
-                    style={{ background: "var(--bg)" }}
-                >
+                <div className="flex-1 flex items-center justify-center" style={{ background: "var(--bg)" }}>
                     <Spinner className="w-5 h-5" />
                 </div>
             </div>
@@ -215,14 +212,18 @@ export default function ChatThreadPage() {
     }
 
     return (
-        <div className="flex h-full" style={{ background: "var(--bg)" }}>
+        /* On mobile: column layout (top-bar above, chat below).
+           On desktop: row layout (sidebar left, chat right). */
+        <div className="flex flex-col md:flex-row h-full" style={{ background: "var(--bg)" }}>
             <ModernChatSidebar />
-            <div className="flex-1 flex flex-col min-w-0">
+
+            {/* Chat area */}
+            <div className="flex-1 flex flex-col min-w-0 min-h-0">
                 <div className="flex-1 overflow-y-auto">
                     {messages.length === 0 && !streamingText ? (
                         <SuggestionGrid onSelect={(t) => sendMessage(t)} />
                     ) : (
-                        <div className="max-w-2xl mx-auto px-6 py-8 space-y-6">
+                        <div className="max-w-2xl mx-auto px-4 md:px-6 py-6 md:py-8 space-y-6">
                             {messages.map((msg) => (
                                 <ChatMessage key={msg.id} message={msg} />
                             ))}
@@ -252,24 +253,18 @@ export default function ChatThreadPage() {
                     )}
                 </div>
 
-                <div
-                    className="border-t px-6 py-4"
+                <div className="px-3 py-3 shrink-0"
                     style={{
-                        background: "var(--bg-1)",
-                        borderColor: "var(--border)",
-                    }}
-                >
+                        background: "transparent",
+                        paddingBottom: "max(12px, env(safe-area-inset-bottom))",
+                    }}>
                     <div className="max-w-2xl mx-auto">
                         <ChatInput
                             value={input}
                             onChange={setInput}
                             onSend={() => sendMessage()}
                             disabled={loading || !!interrupt}
-                            placeholder={
-                                interrupt
-                                    ? "Respond to the confirmation above…"
-                                    : "Ask SmartDesk anything…"
-                            }
+                            placeholder={interrupt ? "Respond to the confirmation above…" : "Ask SmartDesk anything…"}
                         />
                     </div>
                 </div>
