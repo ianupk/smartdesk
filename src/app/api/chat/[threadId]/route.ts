@@ -164,7 +164,7 @@ export async function POST(req: NextRequest, { params }: RouteParams) {
                 // Wrap the entire streamEvents loop in retry logic
                 await invokeWithRetry(async () => {
                     for await (const event of graph.streamEvents(
-                        input,
+                        input as any,
                         config,
                     )) {
                         if (event.event === "on_tool_start") {

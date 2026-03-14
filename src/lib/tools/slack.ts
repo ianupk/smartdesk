@@ -1,6 +1,7 @@
 import { tool } from "@langchain/core/tools";
 import { z } from "zod";
 import { WebClient } from "@slack/web-api";
+import type { KnownBlock } from "@slack/web-api";
 import type { RunnableConfig } from "@langchain/core/runnables";
 
 function getToken(config?: RunnableConfig): string {
@@ -268,7 +269,7 @@ export const announceMeetingTool = tool(
     ) => {
         try {
             const client = new WebClient(getToken(config));
-            const blocks: object[] = [
+            const blocks: KnownBlock[] = [
                 {
                     type: "header",
                     text: {

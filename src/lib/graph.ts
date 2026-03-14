@@ -12,7 +12,6 @@ import {
     ToolMessage,
 } from "@langchain/core/messages";
 import type { BaseMessage } from "@langchain/core/messages";
-import type { CompiledStateGraph } from "@langchain/langgraph";
 import type { RunnableConfig } from "@langchain/core/runnables";
 import { getCheckpointer } from "./checkpointer";
 
@@ -259,10 +258,8 @@ async function agentNode(
 // Graphs are keyed by integration signature (which services are connected).
 // Only recompiles when a user connects/disconnects an integration — not every request.
 type CachedGraph = {
-    graph: CompiledStateGraph<
-        typeof MessagesAnnotation.State,
-        Partial<typeof MessagesAnnotation.State>
-    >;
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    graph: any;
     toolCount: number;
 };
 const _graphCache = new Map<string, CachedGraph>();
@@ -293,12 +290,8 @@ async function getCachedCheckpointer() {
 
 export async function getGraph(
     config?: RunnableConfig,
-): Promise<
-    CompiledStateGraph<
-        typeof MessagesAnnotation.State,
-        Partial<typeof MessagesAnnotation.State>
-    >
-> {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+): Promise<any> {
     const checkpointer = await getCachedCheckpointer();
     const activeTools = getActiveTools(config);
     const key = getIntegrationKey(config);
