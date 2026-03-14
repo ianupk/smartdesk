@@ -175,6 +175,7 @@ export function getActiveTools(config?: RunnableConfig) {
 // ── System prompt — concise to save Groq tokens ──────────────────────────────
 function buildSystemPrompt(
     activeTools: ReturnType<typeof getActiveTools>,
+    config?: RunnableConfig,
 ): string {
     const names = new Set(activeTools.map((t) => t.name));
     const connected: string[] = [];
@@ -208,7 +209,43 @@ function buildSystemPrompt(
         ? connected.map((s) => `- ${s}`).join("\n")
         : "No integrations connected. Tell user to connect from Dashboard → Integrations.";
 
-    return `You are SmartDesk, an AI productivity assistant. Today: ${new Date().toDateString()}.
+    // FIX: Use user's timezone from config for accurate current time context.
+    // This ensures the AI constructs ISO 8601 timestamps in the correct local
+    // timezone rather than defaulting to UTC when interpreting user requests
+    // like "schedule a meeting at 3 PM".
+    const userTimezone =
+        (config?.configurable?.timezone as string) ??
+        process.env.DEFAULT_TIMEZONE ??
+        "UTC";
+
+    const now = new Date();
+    const localDatetime = now.toLocaleString("en-US", {
+        timeZone: userTimezone,
+        weekday: "long",
+        year: "numeric",
+        month: "long",
+        day: "numeric",
+        hour: "2-digit",
+        minute: "2-digit",
+        hour12: true,
+    });
+
+    // Compute UTC offset string for the timezone (e.g. "UTC+5:30")
+    const utcOffsetMinutes = -now.getTimezoneOffset(); // getTimezoneOffset is local, so use Intl instead
+    const offsetFormatter = new Intl.DateTimeFormat("en-US", {
+        timeZone: userTimezone,
+        timeZoneName: "shortOffset",
+    });
+    const offsetParts = offsetFormatter.formatToParts(now);
+    const utcOffset =
+        offsetParts.find((p) => p.type === "timeZoneName")?.value ?? "UTC";
+
+    return `You are SmartDesk, an AI productivity assistant.
+Current date and time: ${localDatetime} (${userTimezone}, ${utcOffset}).
+
+When creating or updating calendar events, always produce ISO 8601 datetime strings
+that include the user's UTC offset (e.g. "2026-03-15T15:00:00+05:30"), NOT bare UTC
+strings ending in "Z" unless the user explicitly requests UTC.
 
 Available tools:
 ${toolSection}
@@ -247,7 +284,8 @@ async function agentNode(
     const trimmed = safeTrimMessages(state.messages);
 
     const response = await llm.invoke([
-        new SystemMessage(buildSystemPrompt(activeTools)),
+        // FIX: Pass config into buildSystemPrompt so it can read the user's timezone
+        new SystemMessage(buildSystemPrompt(activeTools, config)),
         ...trimmed,
     ]);
 

@@ -16,6 +16,66 @@ function calError(toolName: string, err: unknown): string {
     return JSON.stringify({ error: msg });
 }
 
+// FIX: Helper to get the user's timezone from config, with a sensible fallback.
+// Reads config.configurable.timezone first, then DEFAULT_TIMEZONE env var, then "UTC".
+function getUserTimezone(config?: RunnableConfig): string {
+    return (
+        config?.configurable?.timezone ?? process.env.DEFAULT_TIMEZONE ?? "UTC"
+    );
+}
+
+// FIX: Helper to convert a local hour (e.g. 9 for 9 AM) in a given IANA timezone
+// into a UTC Date object. Used by find_free_slots so workday boundaries are
+// interpreted in the user's local time rather than UTC.
+function localHourToUTCDate(
+    dateStr: string,
+    hour: number,
+    timezone: string,
+): Date {
+    // Build an ISO string as if it were local time, then use Intl to resolve the
+    // actual UTC instant. We do this by formatting a reference date in the target
+    // timezone and computing the offset.
+    const paddedHour = String(hour).padStart(2, "0");
+    // Create a Date from a naive local string, then shift it by the timezone offset.
+    const naive = new Date(`${dateStr}T${paddedHour}:00:00`);
+
+    // Get the UTC time that corresponds to `hour` o'clock in `timezone`.
+    // Strategy: format the naive date in the target timezone and read the offset.
+    const formatter = new Intl.DateTimeFormat("en-US", {
+        timeZone: timezone,
+        year: "numeric",
+        month: "2-digit",
+        day: "2-digit",
+        hour: "2-digit",
+        minute: "2-digit",
+        second: "2-digit",
+        hour12: false,
+    });
+
+    // Format the desired local time in the target timezone to get the offset.
+    // We pick a reference point: midnight UTC on the requested date.
+    const midnightUTC = new Date(`${dateStr}T00:00:00Z`);
+    const parts = formatter.formatToParts(midnightUTC);
+    const get = (type: string) =>
+        parseInt(parts.find((p) => p.type === type)?.value ?? "0", 10);
+
+    // How many hours is the timezone ahead of / behind midnight UTC on this date?
+    const tzHourAtMidnightUTC = get("hour");
+    const tzMinuteAtMidnightUTC = get("minute");
+
+    // Offset in minutes between UTC midnight and local midnight:
+    // local_midnight_UTC = -(tzHour * 60 + tzMinute)
+    const offsetMinutes = -(tzHourAtMidnightUTC * 60 + tzMinuteAtMidnightUTC);
+
+    // The UTC timestamp for local `hour:00` on `dateStr`:
+    const targetUTCMs =
+        midnightUTC.getTime() +
+        hour * 60 * 60 * 1000 -
+        offsetMinutes * 60 * 1000;
+
+    return new Date(targetUTCMs);
+}
+
 // ── list_calendar_events ──────────────────────────────────────────────────────
 
 export const listEventsTool = tool(
@@ -144,14 +204,20 @@ export const createEventTool = tool(
         try {
             const token = config?.configurable?.googleAccessToken as string;
             const cal = getClient(token);
+
+            // FIX: Use the user's actual timezone instead of hardcoded "UTC".
+            // Without this, Google Calendar stores the event in UTC, which shifts
+            // the displayed time by the user's UTC offset (e.g. +5:30 for IST).
+            const userTimezone = getUserTimezone(config);
+
             const res = await cal.events.insert({
                 calendarId: "primary",
                 requestBody: {
                     summary: title,
                     description: description ?? "",
                     location: location ?? "",
-                    start: { dateTime: startDateTime, timeZone: "UTC" },
-                    end: { dateTime: endDateTime, timeZone: "UTC" },
+                    start: { dateTime: startDateTime, timeZone: userTimezone },
+                    end: { dateTime: endDateTime, timeZone: userTimezone },
                     attendees: (attendeeEmails ?? []).map((email) => ({
                         email,
                     })),
@@ -219,6 +285,11 @@ export const updateEventTool = tool(
         try {
             const token = config?.configurable?.googleAccessToken as string;
             const cal = getClient(token);
+
+            // FIX: Use the user's timezone as the fallback when the existing event
+            // has no stored timezone, instead of always falling back to "UTC".
+            const userTimezone = getUserTimezone(config);
+
             // Fetch existing first to patch only changed fields
             const existing = await cal.events.get({
                 calendarId: "primary",
@@ -231,12 +302,12 @@ export const updateEventTool = tool(
             if (startDateTime)
                 patch.start = {
                     dateTime: startDateTime,
-                    timeZone: existing.data.start?.timeZone ?? "UTC",
+                    timeZone: existing.data.start?.timeZone ?? userTimezone,
                 };
             if (endDateTime)
                 patch.end = {
                     dateTime: endDateTime,
-                    timeZone: existing.data.end?.timeZone ?? "UTC",
+                    timeZone: existing.data.end?.timeZone ?? userTimezone,
                 };
             if (attendeeEmails)
                 patch.attendees = attendeeEmails.map((email) => ({ email }));
@@ -335,11 +406,21 @@ export const findFreeSlotsTools = tool(
         try {
             const token = config?.configurable?.googleAccessToken as string;
             const cal = getClient(token);
-            const start = new Date(
-                `${date}T${String(workdayStart ?? 9).padStart(2, "0")}:00:00Z`,
+
+            // FIX: Convert workday start/end hours from the user's local timezone to
+            // UTC, instead of appending a literal "Z" which treated them as UTC hours.
+            // e.g. workdayStart=9 in IST (UTC+5:30) should query from 03:30 UTC,
+            // not from 09:00 UTC (which would be 14:30 IST).
+            const userTimezone = getUserTimezone(config);
+            const start = localHourToUTCDate(
+                date,
+                workdayStart ?? 9,
+                userTimezone,
             );
-            const end = new Date(
-                `${date}T${String(workdayEnd ?? 18).padStart(2, "0")}:00:00Z`,
+            const end = localHourToUTCDate(
+                date,
+                workdayEnd ?? 18,
+                userTimezone,
             );
 
             const res = await cal.events.list({
@@ -411,13 +492,15 @@ export const findFreeSlotsTools = tool(
                 .min(0)
                 .max(23)
                 .default(9)
-                .describe("Workday start hour (UTC, default 9)"),
+                .describe(
+                    "Workday start hour in user's local time (default 9)",
+                ),
             workdayEnd: z
                 .number()
                 .min(0)
                 .max(23)
                 .default(18)
-                .describe("Workday end hour (UTC, default 18)"),
+                .describe("Workday end hour in user's local time (default 18)"),
         }),
     },
 );

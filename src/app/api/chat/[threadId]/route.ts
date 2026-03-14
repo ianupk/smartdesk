@@ -115,6 +115,7 @@ export async function POST(req: NextRequest, { params }: RouteParams) {
             todoistAccessToken: session.todoistAccessToken as
                 | string
                 | undefined,
+            timezone: "Asia/Kolkata",
         },
         version: "v2" as const,
     };
