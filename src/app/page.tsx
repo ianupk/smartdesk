@@ -349,7 +349,11 @@ function LandingPage() {
                         <span style={{ fontSize: 13, fontWeight: 500, color: "var(--text-3)" }}>SmartDesk AI</span>
                     </div>
                     <p style={{ fontSize: 12, color: "var(--text-3)", margin: 0 }}>
-                        © {new Date().getFullYear()} SmartDesk
+                     © {new Date().getFullYear()} SmartDesk
+                    {" · "}
+                     <Link href="/privacy" style={{ color: "var(--text-3)", textDecoration: "none" }}>Privacy Policy</Link>
+                    {" · "}
+                     <Link href="/terms" style={{ color: "var(--text-3)", textDecoration: "none" }}>Terms of Service</Link>
                     </p>
                 </footer>
             </div>

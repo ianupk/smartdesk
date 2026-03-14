@@ -6,6 +6,9 @@ import { Providers } from "./providers";
 export const metadata: Metadata = {
     title: { default: "SmartDesk", template: "%s · SmartDesk" },
     description: "AI productivity agent — Gmail, Calendar & Slack via LangGraph",
+    verification: {
+    google: "QNgZ6dd4D5gvZW88k7lMfIINhF6RPxHczTg0DWM7G70"
+  }
 };
 
 export const viewport: Viewport = {
