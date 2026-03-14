@@ -221,7 +221,14 @@ export default function ChatThreadPage() {
             <div className="flex-1 flex flex-col min-w-0 min-h-0">
                 <div className="flex-1 overflow-y-auto">
                     {messages.length === 0 && !streamingText ? (
-                        <SuggestionGrid onSelect={(t) => sendMessage(t)} />
+                        /* ── Empty state: Gemini-style inline input + chips ── */
+                        <SuggestionGrid
+                            onSelect={(t) => sendMessage(t)}
+                            inputValue={input}
+                            onInputChange={setInput}
+                            onSend={() => sendMessage()}
+                            disabled={loading}
+                        />
                     ) : (
                         <div className="max-w-2xl mx-auto px-4 md:px-6 py-6 md:py-8 space-y-6">
                             {messages.map((msg) => (
@@ -253,21 +260,24 @@ export default function ChatThreadPage() {
                     )}
                 </div>
 
-                <div className="px-3 py-3 shrink-0"
-                    style={{
-                        background: "transparent",
-                        paddingBottom: "max(12px, env(safe-area-inset-bottom))",
-                    }}>
-                    <div className="max-w-2xl mx-auto">
-                        <ChatInput
-                            value={input}
-                            onChange={setInput}
-                            onSend={() => sendMessage()}
-                            disabled={loading || !!interrupt}
-                            placeholder={interrupt ? "Respond to the confirmation above…" : "Ask SmartDesk anything…"}
-                        />
+                {/* Bottom input bar — only shown once conversation has started */}
+                {(messages.length > 0 || !!streamingText) && (
+                    <div className="px-3 py-3 shrink-0"
+                        style={{
+                            background: "transparent",
+                            paddingBottom: "max(12px, env(safe-area-inset-bottom))",
+                        }}>
+                        <div className="max-w-2xl mx-auto">
+                            <ChatInput
+                                value={input}
+                                onChange={setInput}
+                                onSend={() => sendMessage()}
+                                disabled={loading || !!interrupt}
+                                placeholder={interrupt ? "Respond to the confirmation above…" : "Ask SmartDesk anything…"}
+                            />
+                        </div>
                     </div>
-                </div>
+                )}
             </div>
         </div>
     );

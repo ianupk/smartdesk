@@ -67,7 +67,7 @@ export function DashboardHeader() {
 
     return (
         <header className="sticky top-2 z-30 h-12 flex items-center" style={{ background: "var(--bg)" }}>
-            <div className="w-full max-w-9xl mx-auto px-4 md:px-6 flex items-center justify-between">
+            <div className="w-full max-w-7xl mx-auto px-4 md:px-6 flex items-center justify-between">
 
                 {/* Brand */}
                 <Link href="/dashboard" className="flex items-center gap-2.5 group">

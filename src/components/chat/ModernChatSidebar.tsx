@@ -45,7 +45,7 @@ const IconMenu = () => (
 );
 // ⌘K as two clean keyboard badge spans — always visible, correct symbols
 const IconCmdK = () => (
-    <span className="flex items-center gap-0.5 select-none">
+    <span className="hidden sm:flex items-center gap-0.5 select-none">
         <span className="inline-flex items-center justify-center rounded px-1 py-0.5 text-[10px] font-medium leading-none"
             style={{ background: "var(--bg-3)", border: "1px solid var(--border)", color: "var(--text-3)", minWidth: 18 }}>
             ⌘
@@ -359,6 +359,7 @@ export function ModernChatSidebar() {
                                 style={{ background: "var(--bg-3)", color: "var(--text-2)", border: "1px solid var(--border)" }}>
                                 {creating ? <Spinner className="w-4 h-4" /> : <IconNewChat />}
                                 New Chat
+                                <IconCmdK />
                             </button>
                         </div>
                         {/* Dashboard — right below New Chat */}
@@ -420,7 +421,7 @@ export function ModernChatSidebar() {
                                 onMouseEnter={e => { (e.currentTarget as HTMLElement).style.background = "var(--bg-3)"; (e.currentTarget as HTMLElement).style.color = "var(--text)"; }}
                                 onMouseLeave={e => { (e.currentTarget as HTMLElement).style.background = "transparent"; (e.currentTarget as HTMLElement).style.color = "var(--text-3)"; }}>
                                 {creating ? <Spinner className="w-[18px] h-[18px]" /> : <IconNewChat />}
-                                <span></span>
+                                <span>New Chat</span>
                                 {/* ⌘K as a proper visible icon — NOT invisible text */}
                                 <IconCmdK />
                             </button>
