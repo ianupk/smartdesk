@@ -359,7 +359,6 @@ export function ModernChatSidebar() {
                                 style={{ background: "var(--bg-3)", color: "var(--text-2)", border: "1px solid var(--border)" }}>
                                 {creating ? <Spinner className="w-4 h-4" /> : <IconNewChat />}
                                 New Chat
-                                <IconCmdK />
                             </button>
                         </div>
                         {/* Dashboard — right below New Chat */}
@@ -421,7 +420,7 @@ export function ModernChatSidebar() {
                                 onMouseEnter={e => { (e.currentTarget as HTMLElement).style.background = "var(--bg-3)"; (e.currentTarget as HTMLElement).style.color = "var(--text)"; }}
                                 onMouseLeave={e => { (e.currentTarget as HTMLElement).style.background = "transparent"; (e.currentTarget as HTMLElement).style.color = "var(--text-3)"; }}>
                                 {creating ? <Spinner className="w-[18px] h-[18px]" /> : <IconNewChat />}
-                                <span>New Chat</span>
+                                <span></span>
                                 {/* ⌘K as a proper visible icon — NOT invisible text */}
                                 <IconCmdK />
                             </button>

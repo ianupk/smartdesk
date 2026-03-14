@@ -248,7 +248,7 @@ export default function DashboardPage() {
                                 </svg>
                             )}
                             New Chat
-                            <span className="flex items-center gap-0.5 select-none">
+                            <span className="hidden sm:flex items-center gap-0.5 select-none">
                                 <span className="inline-flex items-center justify-center rounded px-1 py-0.5 text-[10px] font-medium leading-none"
                                     style={{ background: "var(--bg-2)", border: "1px solid var(--border)", color: "var(--text-3)", minWidth: 18 }}>⌘</span>
                                 <span className="inline-flex items-center justify-center rounded px-1 py-0.5 text-[10px] font-medium leading-none"
