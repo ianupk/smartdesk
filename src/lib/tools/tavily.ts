@@ -23,9 +23,7 @@ import { z } from "zod";
 function getKey(): string {
     const key = process.env.TAVILY_API_KEY;
     if (!key)
-        throw new Error(
-            "Web search is not configured. Add TAVILY_API_KEY to .env.local (free at app.tavily.com).",
-        );
+        throw new Error("Web search is not configured. Add TAVILY_API_KEY to .env.local (free at app.tavily.com).");
     return key;
 }
 
@@ -65,14 +63,8 @@ async function tavilySearch(params: {
 
     if (!res.ok) {
         const errText = await res.text();
-        if (res.status === 401)
-            throw new Error(
-                "Invalid Tavily API key. Check TAVILY_API_KEY in .env.local.",
-            );
-        if (res.status === 429)
-            throw new Error(
-                "Tavily rate limit reached. Please wait and try again.",
-            );
+        if (res.status === 401) throw new Error("Invalid Tavily API key. Check TAVILY_API_KEY in .env.local.");
+        if (res.status === 429) throw new Error("Tavily rate limit reached. Please wait and try again.");
         throw new Error(`Tavily API ${res.status}: ${errText}`);
     }
 
@@ -82,15 +74,7 @@ async function tavilySearch(params: {
 // ── Tools ─────────────────────────────────────────────────────────────────────
 
 export const webSearchTool = tool(
-    async ({
-        query,
-        depth,
-        maxResults,
-    }: {
-        query: string;
-        depth?: string;
-        maxResults?: number;
-    }) => {
+    async ({ query, depth, maxResults }: { query: string; depth?: string; maxResults?: number }) => {
         try {
             const data = await tavilySearch({
                 query,
@@ -123,35 +107,18 @@ export const webSearchTool = tool(
         description:
             "Search the web for any current information, facts, or research. Use when user asks about recent events, news, facts you might not know, technical documentation, or anything requiring up-to-date information. Returns an AI-synthesised answer plus source links.",
         schema: z.object({
-            query: z
-                .string()
-                .describe("Search query — be specific for best results"),
+            query: z.string().describe("Search query — be specific for best results"),
             depth: z
                 .enum(["basic", "deep"])
                 .default("basic")
-                .describe(
-                    "Use 'deep' for thorough research, 'basic' for quick lookups",
-                ),
-            maxResults: z
-                .number()
-                .min(1)
-                .max(10)
-                .default(5)
-                .describe("Number of results to return"),
+                .describe("Use 'deep' for thorough research, 'basic' for quick lookups"),
+            maxResults: z.number().min(1).max(10).default(5).describe("Number of results to return"),
         }),
     },
 );
 
 export const searchNewsTool = tool(
-    async ({
-        query,
-        days,
-        maxResults,
-    }: {
-        query: string;
-        days?: number;
-        maxResults?: number;
-    }) => {
+    async ({ query, days, maxResults }: { query: string; days?: number; maxResults?: number }) => {
         try {
             const data = await tavilySearch({
                 query,
@@ -186,18 +153,8 @@ export const searchNewsTool = tool(
             "Search for recent news articles on any topic. Use when user asks about current events, latest news, what happened recently, breaking news, or anything time-sensitive.",
         schema: z.object({
             query: z.string().describe("News search query"),
-            days: z
-                .number()
-                .min(1)
-                .max(30)
-                .default(3)
-                .describe("How many days back to search"),
-            maxResults: z
-                .number()
-                .min(1)
-                .max(10)
-                .default(5)
-                .describe("Number of articles to return"),
+            days: z.number().min(1).max(30).default(3).describe("How many days back to search"),
+            maxResults: z.number().min(1).max(10).default(5).describe("Number of articles to return"),
         }),
     },
 );

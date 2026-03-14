@@ -8,19 +8,19 @@
     :root {
         color-scheme: dark;
         /* Deep slate-navy with warm amber accent — premium & distinctive */
-        --bg:      #0c0d11;
-        --bg-1:    #111318;
-        --bg-2:    #171a21;
-        --bg-3:    #1d2029;
-        --bg-4:    #242833;
-        --border:      rgba(255,255,255,0.07);
-        --border-soft: rgba(255,255,255,0.04);
-        --text:   #f0f1f5;
+        --bg: #0c0d11;
+        --bg-1: #111318;
+        --bg-2: #171a21;
+        --bg-3: #1d2029;
+        --bg-4: #242833;
+        --border: rgba(255, 255, 255, 0.07);
+        --border-soft: rgba(255, 255, 255, 0.04);
+        --text: #f0f1f5;
         --text-2: #8b8fa8;
         --text-3: #4a4f68;
-        --accent:     #d97706;   /* warm amber */
-        --accent-2:   rgba(217,119,6,0.10);
-        --accent-glow: rgba(217,119,6,0.18);
+        --accent: #d97706; /* warm amber */
+        --accent-2: rgba(217, 119, 6, 0.1);
+        --accent-glow: rgba(217, 119, 6, 0.18);
         --success: #22c55e;
         --sidebar-w: 240px;
         --sidebar-w-collapsed: 56px;
@@ -41,7 +41,7 @@
         -webkit-font-smoothing: antialiased;
         -moz-osx-font-smoothing: grayscale;
         scrollbar-width: thin;
-        scrollbar-color: rgba(255,255,255,0.08) transparent;
+        scrollbar-color: rgba(255, 255, 255, 0.08) transparent;
         /* Mobile: prevent text size adjustment on orientation change */
         -webkit-text-size-adjust: 100%;
         text-size-adjust: 100%;
@@ -55,7 +55,9 @@
     }
 
     /* Prevent scroll bounce on iOS from leaking */
-    #__next, html, body {
+    #__next,
+    html,
+    body {
         overscroll-behavior: none;
     }
 
@@ -66,7 +68,7 @@
         background: transparent;
     }
     ::-webkit-scrollbar-thumb {
-        background: rgba(255,255,255,0.08);
+        background: rgba(255, 255, 255, 0.08);
         border-radius: 99px;
     }
 
@@ -105,11 +107,21 @@
         margin-bottom: 0.5rem;
         letter-spacing: -0.01em;
     }
-    .prose-chat h1 { font-size: 1.125rem; }
-    .prose-chat h2 { font-size: 1rem; }
-    .prose-chat h3 { font-size: 0.875rem; }
-    .prose-chat p { margin-bottom: 0.75rem; }
-    .prose-chat p:last-child { margin-bottom: 0; }
+    .prose-chat h1 {
+        font-size: 1.125rem;
+    }
+    .prose-chat h2 {
+        font-size: 1rem;
+    }
+    .prose-chat h3 {
+        font-size: 0.875rem;
+    }
+    .prose-chat p {
+        margin-bottom: 0.75rem;
+    }
+    .prose-chat p:last-child {
+        margin-bottom: 0;
+    }
     .prose-chat ul {
         list-style: disc;
         padding-left: 1.25rem;
@@ -140,7 +152,7 @@
         color: #fbbf24;
         padding: 0.15em 0.45em;
         border-radius: 5px;
-        border: 1px solid rgba(255,255,255,0.06);
+        border: 1px solid rgba(255, 255, 255, 0.06);
     }
     .prose-chat pre {
         background: var(--bg-3);
@@ -170,8 +182,14 @@
 
     /* Smooth fade-in for new content */
     @keyframes fadeSlideUp {
-        from { opacity: 0; transform: translateY(6px); }
-        to   { opacity: 1; transform: translateY(0); }
+        from {
+            opacity: 0;
+            transform: translateY(6px);
+        }
+        to {
+            opacity: 1;
+            transform: translateY(0);
+        }
     }
     .animate-fade-up {
         animation: fadeSlideUp 0.2s ease forwards;
@@ -179,7 +197,9 @@
 
     /* Sidebar thread hover */
     .thread-item {
-        transition: background 0.12s ease, color 0.12s ease;
+        transition:
+            background 0.12s ease,
+            color 0.12s ease;
     }
     .thread-item:hover {
         background: var(--bg-3) !important;
@@ -187,7 +207,10 @@
 
     /* Premium hover glow on icon buttons */
     .icon-btn {
-        transition: background 0.15s ease, color 0.15s ease, box-shadow 0.15s ease;
+        transition:
+            background 0.15s ease,
+            color 0.15s ease,
+            box-shadow 0.15s ease;
     }
     .icon-btn:hover {
         background: var(--bg-3) !important;
@@ -196,7 +219,10 @@
 
     /* Connect button pulse effect */
     .btn-connect {
-        transition: background 0.15s ease, box-shadow 0.15s ease, transform 0.1s ease;
+        transition:
+            background 0.15s ease,
+            box-shadow 0.15s ease,
+            transform 0.1s ease;
     }
     .btn-connect:hover {
         box-shadow: 0 0 0 3px var(--accent-glow);
@@ -205,6 +231,4 @@
     .btn-connect:active {
         transform: translateY(0);
     }
-
 }
-

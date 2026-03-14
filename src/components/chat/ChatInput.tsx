@@ -14,13 +14,19 @@ export function ChatInput({ value, onChange, onSend, disabled, placeholder }: Ch
     const ref = useRef<HTMLTextAreaElement>(null);
 
     const handleKey = (e: KeyboardEvent) => {
-        if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); onSend(); }
+        if (e.key === "Enter" && !e.shiftKey) {
+            e.preventDefault();
+            onSend();
+        }
     };
 
     const handleChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
         onChange(e.target.value);
         const el = ref.current;
-        if (el) { el.style.height = "auto"; el.style.height = Math.min(el.scrollHeight, 140) + "px"; }
+        if (el) {
+            el.style.height = "auto";
+            el.style.height = Math.min(el.scrollHeight, 140) + "px";
+        }
     };
 
     const canSend = value.trim() && !disabled;
@@ -32,12 +38,12 @@ export function ChatInput({ value, onChange, onSend, disabled, placeholder }: Ch
                 background: "var(--bg-2)",
                 border: "1px solid var(--border)",
             }}
-            onFocusCapture={e => {
+            onFocusCapture={(e) => {
                 const p = e.currentTarget as HTMLElement;
                 p.style.borderColor = "rgba(217,119,6,0.35)";
                 p.style.boxShadow = "0 0 0 3px var(--accent-glow)";
             }}
-            onBlurCapture={e => {
+            onBlurCapture={(e) => {
                 const p = e.currentTarget as HTMLElement;
                 p.style.borderColor = "var(--border)";
                 p.style.boxShadow = "none";
@@ -60,19 +66,31 @@ export function ChatInput({ value, onChange, onSend, disabled, placeholder }: Ch
                 title="Send (Enter)"
                 className={cn(
                     "shrink-0 w-8 h-8 rounded-xl flex items-center justify-center transition-all duration-150",
-                    canSend ? "text-white" : "cursor-not-allowed opacity-30"
+                    canSend ? "text-white" : "cursor-not-allowed opacity-30",
                 )}
                 style={{
                     background: canSend ? "linear-gradient(135deg, var(--accent), #f59e0b)" : "var(--bg-3)",
                     boxShadow: canSend ? "0 2px 12px var(--accent-glow)" : "none",
                     transform: "scale(1)",
                 }}
-                onMouseEnter={e => { if (canSend) (e.currentTarget as HTMLElement).style.transform = "scale(1.08)"; }}
-                onMouseLeave={e => { (e.currentTarget as HTMLElement).style.transform = "scale(1)"; }}
+                onMouseEnter={(e) => {
+                    if (canSend) (e.currentTarget as HTMLElement).style.transform = "scale(1.08)";
+                }}
+                onMouseLeave={(e) => {
+                    (e.currentTarget as HTMLElement).style.transform = "scale(1)";
+                }}
             >
-                <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                    <line x1="12" y1="19" x2="12" y2="5"/>
-                    <polyline points="5 12 12 5 19 12"/>
+                <svg
+                    className="w-4 h-4"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="2.5"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                >
+                    <line x1="12" y1="19" x2="12" y2="5" />
+                    <polyline points="5 12 12 5 19 12" />
                 </svg>
             </button>
         </div>

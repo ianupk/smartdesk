@@ -3,11 +3,7 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { KeyboardShortcuts } from "@/components/layout/KeyboardShortcuts";
 
-export default async function AppLayout({
-    children,
-}: {
-    children: React.ReactNode;
-}) {
+export default async function AppLayout({ children }: { children: React.ReactNode }) {
     const session = await getServerSession(authOptions);
     if (!session) redirect("/login");
 

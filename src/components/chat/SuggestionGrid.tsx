@@ -4,13 +4,13 @@ import { useSession } from "next-auth/react";
 // Row 1: 4 chips, Row 2: 2 chips (centered)
 const CHIPS_ROW1 = [
     { emoji: "📧", text: "Summarise my last 5 unread emails" },
+    { emoji: "📹", text: "Create a Zoom meeting for tomorrow 10am" },
     { emoji: "📅", text: "What's on my calendar this week?" },
-    { emoji: "💬", text: "List my Slack channels" },
     { emoji: "✅", text: "Show my tasks for today" },
 ];
 const CHIPS_ROW2 = [
-    { emoji: "🐙", text: "What PRs need my review?" },
-    { emoji: "📹", text: "Create a Zoom meeting for tomorrow 10am" },
+    { emoji: "🐙", text: "Show my GitHub repositories" },
+    { emoji: "💬", text: "Catch me up on general channel" },
 ];
 
 function getGreeting() {
@@ -23,8 +23,13 @@ function getGreeting() {
 // App icon — exact path from extension_icon.svg
 const AppIconMark = () => (
     <svg viewBox="0 0 16 16" fill="none" className="w-6 h-6" style={{ color: "#fff" }}>
-        <path stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.5"
-            d="M3.25 5.25v5.5m7.5-7.5h-5.5m7.5 2v5.5m-2 2h-5.5m6.5-2h1.5a1 1 0 0 1 1 1v1.5a1 1 0 0 1-1 1h-1.5a1 1 0 0 1-1-1v-1.5a1 1 0 0 1 1-1Zm-9 0h1.5a1 1 0 0 1 1 1v1.5a1 1 0 0 1-1 1h-1.5a1 1 0 0 1-1-1v-1.5a1 1 0 0 1 1-1Zm0-9h1.5a1 1 0 0 1 1 1v1.5a1 1 0 0 1-1 1h-1.5a1 1 0 0 1-1-1v-1.5a1 1 0 0 1 1-1Zm9 0h1.5a1 1 0 0 1 1 1v1.5a1 1 0 0 1-1 1h-1.5a1 1 0 0 1-1-1v-1.5a1 1 0 0 1 1-1Z"/>
+        <path
+            stroke="currentColor"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            strokeWidth="1.5"
+            d="M3.25 5.25v5.5m7.5-7.5h-5.5m7.5 2v5.5m-2 2h-5.5m6.5-2h1.5a1 1 0 0 1 1 1v1.5a1 1 0 0 1-1 1h-1.5a1 1 0 0 1-1-1v-1.5a1 1 0 0 1 1-1Zm-9 0h1.5a1 1 0 0 1 1 1v1.5a1 1 0 0 1-1 1h-1.5a1 1 0 0 1-1-1v-1.5a1 1 0 0 1 1-1Zm0-9h1.5a1 1 0 0 1 1 1v1.5a1 1 0 0 1-1 1h-1.5a1 1 0 0 1-1-1v-1.5a1 1 0 0 1 1-1Zm9 0h1.5a1 1 0 0 1 1 1v1.5a1 1 0 0 1-1 1h-1.5a1 1 0 0 1-1-1v-1.5a1 1 0 0 1 1-1Z"
+        />
     </svg>
 );
 
@@ -42,12 +47,12 @@ function Chip({ emoji, text, onSelect }: { emoji: string; text: string; onSelect
             onClick={() => onSelect(text)}
             className="flex items-center gap-2 px-4 py-2 rounded-full text-sm transition-all duration-150 whitespace-nowrap"
             style={{ background: "var(--bg-2)", border: "1px solid var(--border)", color: "var(--text-2)" }}
-            onMouseEnter={e => {
+            onMouseEnter={(e) => {
                 (e.currentTarget as HTMLElement).style.background = "var(--bg-3)";
                 (e.currentTarget as HTMLElement).style.borderColor = "rgba(255,255,255,0.12)";
                 (e.currentTarget as HTMLElement).style.color = "var(--text)";
             }}
-            onMouseLeave={e => {
+            onMouseLeave={(e) => {
                 (e.currentTarget as HTMLElement).style.background = "var(--bg-2)";
                 (e.currentTarget as HTMLElement).style.borderColor = "var(--border)";
                 (e.currentTarget as HTMLElement).style.color = "var(--text-2)";
@@ -63,7 +68,10 @@ export function SuggestionGrid({ onSelect, inputValue, onInputChange, onSend, di
     const canSend = inputValue.trim() && !disabled;
 
     const handleKey = (e: React.KeyboardEvent) => {
-        if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); onSend(); }
+        if (e.key === "Enter" && !e.shiftKey) {
+            e.preventDefault();
+            onSend();
+        }
     };
 
     const handleChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
@@ -75,30 +83,39 @@ export function SuggestionGrid({ onSelect, inputValue, onInputChange, onSend, di
 
     return (
         <div className="flex flex-col items-center justify-center h-full px-4 md:px-8 py-10">
-
             {/* ── Icon + greeting (centered, same as before) ── */}
             <div className="text-center mb-7 md:mb-8">
-                <div className="w-14 h-14 rounded-2xl flex items-center justify-center mx-auto mb-4"
-                    style={{ background: "linear-gradient(135deg, var(--accent), #f59e0b)", boxShadow: "0 8px 32px var(--accent-glow)" }}>
+                <div
+                    className="w-14 h-14 rounded-2xl flex items-center justify-center mx-auto mb-4"
+                    style={{
+                        background: "linear-gradient(135deg, var(--accent), #f59e0b)",
+                        boxShadow: "0 8px 32px var(--accent-glow)",
+                    }}
+                >
                     <AppIconMark />
                 </div>
-                <h2 className="text-xl md:text-2xl font-semibold tracking-tight mb-1"
-                    style={{ color: "var(--text)", letterSpacing: "-0.02em" }}>
+                <h2
+                    className="text-xl md:text-2xl font-semibold tracking-tight mb-1"
+                    style={{ color: "var(--text)", letterSpacing: "-0.02em" }}
+                >
                     {getGreeting()}
                 </h2>
-                <p className="text-sm" style={{ color: "var(--text-3)" }}>What would you like to do today?</p>
+                <p className="text-sm" style={{ color: "var(--text-3)" }}>
+                    What would you like to do today?
+                </p>
             </div>
 
             {/* ── Inline input box (max-w matches conversation width) ── */}
             <div className="w-full max-w-2xl mb-6">
-                <div className="rounded-2xl overflow-hidden transition-all duration-200"
+                <div
+                    className="rounded-2xl overflow-hidden transition-all duration-200"
                     style={{ background: "var(--bg-2)", border: "1px solid var(--border)" }}
-                    onFocusCapture={e => {
+                    onFocusCapture={(e) => {
                         const el = e.currentTarget as HTMLElement;
                         el.style.borderColor = "rgba(217,119,6,0.35)";
                         el.style.boxShadow = "0 0 0 3px var(--accent-glow)";
                     }}
-                    onBlurCapture={e => {
+                    onBlurCapture={(e) => {
                         const el = e.currentTarget as HTMLElement;
                         el.style.borderColor = "var(--border)";
                         el.style.boxShadow = "none";
@@ -131,13 +148,25 @@ export function SuggestionGrid({ onSelect, inputValue, onInputChange, onSend, di
                                 boxShadow: canSend ? "0 2px 12px var(--accent-glow)" : "none",
                                 opacity: canSend ? 1 : 0.4,
                             }}
-                            onMouseEnter={e => { if (canSend) (e.currentTarget as HTMLElement).style.transform = "scale(1.08)"; }}
-                            onMouseLeave={e => { (e.currentTarget as HTMLElement).style.transform = "scale(1)"; }}
+                            onMouseEnter={(e) => {
+                                if (canSend) (e.currentTarget as HTMLElement).style.transform = "scale(1.08)";
+                            }}
+                            onMouseLeave={(e) => {
+                                (e.currentTarget as HTMLElement).style.transform = "scale(1)";
+                            }}
                         >
                             {/* Upright arrow-up icon (not tilted) */}
-                            <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                                <line x1="12" y1="19" x2="12" y2="5"/>
-                                <polyline points="5 12 12 5 19 12"/>
+                            <svg
+                                className="w-4 h-4"
+                                viewBox="0 0 24 24"
+                                fill="none"
+                                stroke="currentColor"
+                                strokeWidth="2.5"
+                                strokeLinecap="round"
+                                strokeLinejoin="round"
+                            >
+                                <line x1="12" y1="19" x2="12" y2="5" />
+                                <polyline points="5 12 12 5 19 12" />
                             </svg>
                         </button>
                     </div>

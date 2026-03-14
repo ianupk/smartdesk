@@ -19,19 +19,13 @@ function calError(toolName: string, err: unknown): string {
 // FIX: Helper to get the user's timezone from config, with a sensible fallback.
 // Reads config.configurable.timezone first, then DEFAULT_TIMEZONE env var, then "UTC".
 function getUserTimezone(config?: RunnableConfig): string {
-    return (
-        config?.configurable?.timezone ?? process.env.DEFAULT_TIMEZONE ?? "UTC"
-    );
+    return config?.configurable?.timezone ?? process.env.DEFAULT_TIMEZONE ?? "UTC";
 }
 
 // FIX: Helper to convert a local hour (e.g. 9 for 9 AM) in a given IANA timezone
 // into a UTC Date object. Used by find_free_slots so workday boundaries are
 // interpreted in the user's local time rather than UTC.
-function localHourToUTCDate(
-    dateStr: string,
-    hour: number,
-    timezone: string,
-): Date {
+function localHourToUTCDate(dateStr: string, hour: number, timezone: string): Date {
     // Build an ISO string as if it were local time, then use Intl to resolve the
     // actual UTC instant. We do this by formatting a reference date in the target
     // timezone and computing the offset.
@@ -56,8 +50,7 @@ function localHourToUTCDate(
     // We pick a reference point: midnight UTC on the requested date.
     const midnightUTC = new Date(`${dateStr}T00:00:00Z`);
     const parts = formatter.formatToParts(midnightUTC);
-    const get = (type: string) =>
-        parseInt(parts.find((p) => p.type === type)?.value ?? "0", 10);
+    const get = (type: string) => parseInt(parts.find((p) => p.type === type)?.value ?? "0", 10);
 
     // How many hours is the timezone ahead of / behind midnight UTC on this date?
     const tzHourAtMidnightUTC = get("hour");
@@ -68,10 +61,7 @@ function localHourToUTCDate(
     const offsetMinutes = -(tzHourAtMidnightUTC * 60 + tzMinuteAtMidnightUTC);
 
     // The UTC timestamp for local `hour:00` on `dateStr`:
-    const targetUTCMs =
-        midnightUTC.getTime() +
-        hour * 60 * 60 * 1000 -
-        offsetMinutes * 60 * 1000;
+    const targetUTCMs = midnightUTC.getTime() + hour * 60 * 60 * 1000 - offsetMinutes * 60 * 1000;
 
     return new Date(targetUTCMs);
 }
@@ -108,15 +98,9 @@ export const listEventsTool = tool(
     },
     {
         name: "list_calendar_events",
-        description:
-            "List upcoming Google Calendar events. Use when user asks what's on their schedule.",
+        description: "List upcoming Google Calendar events. Use when user asks what's on their schedule.",
         schema: z.object({
-            days: z
-                .number()
-                .min(1)
-                .max(30)
-                .default(7)
-                .describe("Days ahead to look"),
+            days: z.number().min(1).max(30).default(7).describe("Days ahead to look"),
         }),
     },
 );
@@ -124,13 +108,7 @@ export const listEventsTool = tool(
 // ── check_calendar_conflicts ──────────────────────────────────────────────────
 
 export const checkConflictsTool = tool(
-    async (
-        {
-            startDateTime,
-            endDateTime,
-        }: { startDateTime: string; endDateTime: string },
-        config?: RunnableConfig,
-    ) => {
+    async ({ startDateTime, endDateTime }: { startDateTime: string; endDateTime: string }, config?: RunnableConfig) => {
         try {
             const token = config?.configurable?.googleAccessToken as string;
             const cal = getClient(token);
@@ -155,8 +133,7 @@ export const checkConflictsTool = tool(
     },
     {
         name: "check_calendar_conflicts",
-        description:
-            "Check if a time slot has conflicts. Always call before creating an event.",
+        description: "Check if a time slot has conflicts. Always call before creating an event.",
         schema: z.object({
             startDateTime: z.string().describe("ISO 8601 start time"),
             endDateTime: z.string().describe("ISO 8601 end time"),
@@ -236,8 +213,7 @@ export const createEventTool = tool(
     },
     {
         name: "create_calendar_event",
-        description:
-            "Create a new Google Calendar event. Will ask user to confirm first.",
+        description: "Create a new Google Calendar event. Will ask user to confirm first.",
         schema: z.object({
             title: z.string(),
             startDateTime: z.string().describe("ISO 8601"),
@@ -309,8 +285,7 @@ export const updateEventTool = tool(
                     dateTime: endDateTime,
                     timeZone: existing.data.end?.timeZone ?? userTimezone,
                 };
-            if (attendeeEmails)
-                patch.attendees = attendeeEmails.map((email) => ({ email }));
+            if (attendeeEmails) patch.attendees = attendeeEmails.map((email) => ({ email }));
 
             const res = await cal.events.patch({
                 calendarId: "primary",
@@ -329,8 +304,7 @@ export const updateEventTool = tool(
     },
     {
         name: "update_calendar_event",
-        description:
-            "Update an existing Google Calendar event. Use when user wants to reschedule or edit an event.",
+        description: "Update an existing Google Calendar event. Use when user wants to reschedule or edit an event.",
         schema: z.object({
             eventId: z.string().describe("Event ID from list_calendar_events"),
             title: z.string().optional(),
@@ -346,10 +320,7 @@ export const updateEventTool = tool(
 // ── delete_calendar_event ─────────────────────────────────────────────────────
 
 export const deleteEventTool = tool(
-    async (
-        { eventId, title }: { eventId: string; title?: string },
-        config?: RunnableConfig,
-    ) => {
+    async ({ eventId, title }: { eventId: string; title?: string }, config?: RunnableConfig) => {
         const confirmed = interrupt({
             question: "Delete this calendar event?",
             details: { eventId, title: title ?? eventId },
@@ -374,14 +345,10 @@ export const deleteEventTool = tool(
     },
     {
         name: "delete_calendar_event",
-        description:
-            "Delete a Google Calendar event. Will ask user to confirm first.",
+        description: "Delete a Google Calendar event. Will ask user to confirm first.",
         schema: z.object({
             eventId: z.string().describe("Event ID from list_calendar_events"),
-            title: z
-                .string()
-                .optional()
-                .describe("Event title for confirmation display"),
+            title: z.string().optional().describe("Event title for confirmation display"),
         }),
     },
 );
@@ -412,16 +379,8 @@ export const findFreeSlotsTools = tool(
             // e.g. workdayStart=9 in IST (UTC+5:30) should query from 03:30 UTC,
             // not from 09:00 UTC (which would be 14:30 IST).
             const userTimezone = getUserTimezone(config);
-            const start = localHourToUTCDate(
-                date,
-                workdayStart ?? 9,
-                userTimezone,
-            );
-            const end = localHourToUTCDate(
-                date,
-                workdayEnd ?? 18,
-                userTimezone,
-            );
+            const start = localHourToUTCDate(date, workdayStart ?? 9, userTimezone);
+            const end = localHourToUTCDate(date, workdayEnd ?? 18, userTimezone);
 
             const res = await cal.events.list({
                 calendarId: "primary",
@@ -482,19 +441,13 @@ export const findFreeSlotsTools = tool(
             "Find free time slots on a specific day. Use when user asks when they are free, or wants to schedule something.",
         schema: z.object({
             date: z.string().describe("Date in YYYY-MM-DD format"),
-            durationMinutes: z
-                .number()
-                .min(15)
-                .default(30)
-                .describe("Required slot duration in minutes"),
+            durationMinutes: z.number().min(15).default(30).describe("Required slot duration in minutes"),
             workdayStart: z
                 .number()
                 .min(0)
                 .max(23)
                 .default(9)
-                .describe(
-                    "Workday start hour in user's local time (default 9)",
-                ),
+                .describe("Workday start hour in user's local time (default 9)"),
             workdayEnd: z
                 .number()
                 .min(0)

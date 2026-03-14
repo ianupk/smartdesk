@@ -5,36 +5,34 @@ import { prisma } from "@/lib/prisma";
 
 export async function GET() {
     const session = await getServerSession(authOptions);
-    if (!session?.userId)
-        return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    if (!session?.userId) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
-    const [totalThreads, totalMessages, integrations, recentThreads] =
-        await Promise.all([
-            prisma.thread.count({ where: { userId: session.userId } }),
-            prisma.message.count({
-                where: { thread: { userId: session.userId } },
-            }),
-            prisma.integration.findMany({
-                where: { userId: session.userId },
-                select: { provider: true, teamName: true, createdAt: true },
-            }),
-            prisma.thread.findMany({
-                where: { userId: session.userId },
-                orderBy: { updatedAt: "desc" },
-                take: 5,
-                select: {
-                    id: true,
-                    title: true,
-                    updatedAt: true,
-                    _count: { select: { messages: true } },
-                    messages: {
-                        orderBy: { createdAt: "desc" },
-                        take: 1,
-                        select: { content: true },
-                    },
+    const [totalThreads, totalMessages, integrations, recentThreads] = await Promise.all([
+        prisma.thread.count({ where: { userId: session.userId } }),
+        prisma.message.count({
+            where: { thread: { userId: session.userId } },
+        }),
+        prisma.integration.findMany({
+            where: { userId: session.userId },
+            select: { provider: true, teamName: true, createdAt: true },
+        }),
+        prisma.thread.findMany({
+            where: { userId: session.userId },
+            orderBy: { updatedAt: "desc" },
+            take: 5,
+            select: {
+                id: true,
+                title: true,
+                updatedAt: true,
+                _count: { select: { messages: true } },
+                messages: {
+                    orderBy: { createdAt: "desc" },
+                    take: 1,
+                    select: { content: true },
                 },
-            }),
-        ]);
+            },
+        }),
+    ]);
 
     return NextResponse.json({
         totalThreads,

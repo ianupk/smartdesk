@@ -7,18 +7,14 @@ import type { RunnableConfig } from "@langchain/core/runnables";
 // The route already calls getZoomToken() once and puts the fresh token in config.
 function getToken(config?: RunnableConfig): string {
     const token = config?.configurable?.zoomAccessToken as string | undefined;
-    if (!token)
-        throw new Error(
-            "Zoom is not connected. Please go to Dashboard → Connect Zoom.",
-        );
+    if (!token) throw new Error("Zoom is not connected. Please go to Dashboard → Connect Zoom.");
     return token;
 }
 
 function zoomError(toolName: string, err: unknown): string {
     const msg = err instanceof Error ? err.message : String(err);
     const friendly: Record<string, string> = {
-        invalid_token:
-            "Zoom token expired. Please reconnect Zoom from the Dashboard.",
+        invalid_token: "Zoom token expired. Please reconnect Zoom from the Dashboard.",
         not_approved: "Zoom app not approved. Re-authorize from the Dashboard.",
         disallow_host_meeting: "You don't have permission to create meetings.",
     };
@@ -29,11 +25,7 @@ function zoomError(toolName: string, err: unknown): string {
     return JSON.stringify({ error: msg });
 }
 
-async function zoomFetch(
-    path: string,
-    token: string,
-    opts: RequestInit = {},
-): Promise<Response> {
+async function zoomFetch(path: string, token: string, opts: RequestInit = {}): Promise<Response> {
     return fetch(`https://api.zoom.us/v2${path}`, {
         ...opts,
         headers: {
@@ -50,28 +42,17 @@ export const listMeetingsTool = tool(
     async (_: object, config?: RunnableConfig) => {
         try {
             const token = getToken(config);
-            const res = await zoomFetch(
-                "/users/me/meetings?type=upcoming&page_size=10",
-                token,
-            );
-            if (!res.ok)
-                throw new Error(`Zoom API ${res.status}: ${await res.text()}`);
+            const res = await zoomFetch("/users/me/meetings?type=upcoming&page_size=10", token);
+            if (!res.ok) throw new Error(`Zoom API ${res.status}: ${await res.text()}`);
             const data = await res.json();
-            const meetings = (data.meetings ?? []).map(
-                (m: Record<string, unknown>) => ({
-                    id: m.id,
-                    topic: m.topic,
-                    startTime: m.start_time,
-                    duration: `${m.duration} min`,
-                    joinUrl: m.join_url,
-                    type:
-                        m.type === 2
-                            ? "Scheduled"
-                            : m.type === 1
-                              ? "Instant"
-                              : "Recurring",
-                }),
-            );
+            const meetings = (data.meetings ?? []).map((m: Record<string, unknown>) => ({
+                id: m.id,
+                topic: m.topic,
+                startTime: m.start_time,
+                duration: `${m.duration} min`,
+                joinUrl: m.join_url,
+                type: m.type === 2 ? "Scheduled" : m.type === 1 ? "Instant" : "Recurring",
+            }));
             return JSON.stringify({ meetings, total: meetings.length });
         } catch (err) {
             return zoomError("list_meetings", err);
@@ -79,8 +60,7 @@ export const listMeetingsTool = tool(
     },
     {
         name: "list_zoom_meetings",
-        description:
-            "List upcoming Zoom meetings. Use when user asks about scheduled Zoom meetings.",
+        description: "List upcoming Zoom meetings. Use when user asks about scheduled Zoom meetings.",
         schema: z.object({
             _unused: z.string().optional().describe("ignored"),
         }),
@@ -145,8 +125,7 @@ export const createMeetingTool = tool(
                 method: "POST",
                 body: JSON.stringify(body),
             });
-            if (!res.ok)
-                throw new Error(`Zoom API ${res.status}: ${await res.text()}`);
+            if (!res.ok) throw new Error(`Zoom API ${res.status}: ${await res.text()}`);
             const meeting = await res.json();
             return JSON.stringify({
                 success: true,
@@ -164,14 +143,10 @@ export const createMeetingTool = tool(
     },
     {
         name: "create_zoom_meeting",
-        description:
-            "Create a Zoom meeting. Will ask user to confirm first. Returns the join link.",
+        description: "Create a Zoom meeting. Will ask user to confirm first. Returns the join link.",
         schema: z.object({
             topic: z.string().describe("Meeting title/topic"),
-            startTime: z
-                .string()
-                .optional()
-                .describe("ISO 8601 start time. Omit for instant meeting."),
+            startTime: z.string().optional().describe("ISO 8601 start time. Omit for instant meeting."),
             durationMinutes: z.number().min(15).max(480).default(60),
             agenda: z.string().optional(),
             password: z.string().optional(),
@@ -186,8 +161,7 @@ export const getMeetingTool = tool(
         try {
             const token = getToken(config);
             const res = await zoomFetch(`/meetings/${meetingId}`, token);
-            if (!res.ok)
-                throw new Error(`Zoom API ${res.status}: ${await res.text()}`);
+            if (!res.ok) throw new Error(`Zoom API ${res.status}: ${await res.text()}`);
             const m = await res.json();
             return JSON.stringify({
                 id: m.id,
@@ -207,12 +181,9 @@ export const getMeetingTool = tool(
     },
     {
         name: "get_zoom_meeting",
-        description:
-            "Get details and join link for a specific Zoom meeting by ID.",
+        description: "Get details and join link for a specific Zoom meeting by ID.",
         schema: z.object({
-            meetingId: z
-                .string()
-                .describe("Zoom meeting ID from list_zoom_meetings"),
+            meetingId: z.string().describe("Zoom meeting ID from list_zoom_meetings"),
         }),
     },
 );
@@ -244,9 +215,7 @@ export const updateMeetingTool = tool(
                 meetingId,
                 topic,
                 startTime,
-                duration: durationMinutes
-                    ? `${durationMinutes} min`
-                    : undefined,
+                duration: durationMinutes ? `${durationMinutes} min` : undefined,
             },
         });
         if (!confirmed)
@@ -268,8 +237,7 @@ export const updateMeetingTool = tool(
                 method: "PATCH",
                 body: JSON.stringify(body),
             });
-            if (!res.ok && res.status !== 204)
-                throw new Error(`Zoom API ${res.status}: ${await res.text()}`);
+            if (!res.ok && res.status !== 204) throw new Error(`Zoom API ${res.status}: ${await res.text()}`);
             return JSON.stringify({
                 success: true,
                 meetingId,
@@ -281,12 +249,9 @@ export const updateMeetingTool = tool(
     },
     {
         name: "update_zoom_meeting",
-        description:
-            "Update an existing Zoom meeting — change topic, time, duration, or agenda. Will confirm first.",
+        description: "Update an existing Zoom meeting — change topic, time, duration, or agenda. Will confirm first.",
         schema: z.object({
-            meetingId: z
-                .string()
-                .describe("Zoom meeting ID from list_zoom_meetings"),
+            meetingId: z.string().describe("Zoom meeting ID from list_zoom_meetings"),
             topic: z.string().optional(),
             startTime: z.string().optional().describe("ISO 8601"),
             durationMinutes: z.number().min(15).max(480).optional(),
@@ -299,10 +264,7 @@ export const updateMeetingTool = tool(
 // ── delete_zoom_meeting ───────────────────────────────────────────────────────
 
 export const deleteMeetingTool = tool(
-    async (
-        { meetingId, topic }: { meetingId: string; topic?: string },
-        config?: RunnableConfig,
-    ) => {
+    async ({ meetingId, topic }: { meetingId: string; topic?: string }, config?: RunnableConfig) => {
         const confirmed = interrupt({
             question: "Delete this Zoom meeting?",
             details: { meetingId, topic: topic ?? meetingId },
@@ -314,8 +276,7 @@ export const deleteMeetingTool = tool(
             const res = await zoomFetch(`/meetings/${meetingId}`, token, {
                 method: "DELETE",
             });
-            if (!res.ok && res.status !== 204)
-                throw new Error(`Zoom API ${res.status}: ${await res.text()}`);
+            if (!res.ok && res.status !== 204) throw new Error(`Zoom API ${res.status}: ${await res.text()}`);
             return JSON.stringify({
                 success: true,
                 message: `Meeting "${topic ?? meetingId}" deleted.`,
@@ -329,10 +290,7 @@ export const deleteMeetingTool = tool(
         description: "Delete a Zoom meeting. Will ask user to confirm first.",
         schema: z.object({
             meetingId: z.string().describe("Zoom meeting ID"),
-            topic: z
-                .string()
-                .optional()
-                .describe("Meeting topic for confirmation display"),
+            topic: z.string().optional().describe("Meeting topic for confirmation display"),
         }),
     },
 );

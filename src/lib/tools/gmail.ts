@@ -13,10 +13,8 @@ const getClient = (token: string) => {
 function gmailError(toolName: string, err: unknown): string {
     const msg = err instanceof Error ? err.message : String(err);
     const map: Record<string, string> = {
-        "Invalid Credentials":
-            "Gmail token expired. Please reconnect Google from Dashboard.",
-        insufficientPermissions:
-            "Gmail permissions missing. Please reconnect Google with correct scopes.",
+        "Invalid Credentials": "Gmail token expired. Please reconnect Google from Dashboard.",
+        insufficientPermissions: "Gmail permissions missing. Please reconnect Google with correct scopes.",
         quotaExceeded: "Gmail API quota exceeded. Please wait and try again.",
     };
     for (const [k, v] of Object.entries(map)) {
@@ -43,10 +41,7 @@ function cacheSet(key: string, data: unknown, ttlMs = 300_000) {
 
 // ── list_emails ───────────────────────────────────────────────────────────────
 export const listEmailsTool = tool(
-    async (
-        { maxResults, query }: { maxResults?: number; query?: string },
-        config?: RunnableConfig,
-    ) => {
+    async ({ maxResults, query }: { maxResults?: number; query?: string }, config?: RunnableConfig) => {
         try {
             const token = config?.configurable?.googleAccessToken as string;
             const limit = Math.min(maxResults ?? 5, 10); // cap at 10
@@ -73,8 +68,7 @@ export const listEmailsTool = tool(
                     metadataHeaders: ["Subject", "From", "Date"],
                 });
                 const h = d.data.payload?.headers ?? [];
-                const g = (n: string) =>
-                    h.find((x) => x.name === n)?.value ?? "";
+                const g = (n: string) => h.find((x) => x.name === n)?.value ?? "";
                 emails.push({
                     id: msg.id,
                     subject: g("Subject"),
@@ -93,19 +87,10 @@ export const listEmailsTool = tool(
     },
     {
         name: "list_emails",
-        description:
-            "Fetch recent Gmail emails. Use when user wants to see emails.",
+        description: "Fetch recent Gmail emails. Use when user wants to see emails.",
         schema: z.object({
-            maxResults: z
-                .number()
-                .min(1)
-                .max(10)
-                .default(5)
-                .describe("Number of emails (max 10)"),
-            query: z
-                .string()
-                .optional()
-                .describe('Gmail search e.g. "from:boss@co.com is:unread"'),
+            maxResults: z.number().min(1).max(10).default(5).describe("Number of emails (max 10)"),
+            query: z.string().optional().describe('Gmail search e.g. "from:boss@co.com is:unread"'),
         }),
     },
 );
@@ -130,12 +115,9 @@ export const getEmailBodyTool = tool(
             let body = "";
             const parts = d.data.payload?.parts ?? [];
             const tp = parts.find((p) => p.mimeType === "text/plain");
-            if (tp?.body?.data)
-                body = Buffer.from(tp.body.data, "base64").toString("utf-8");
+            if (tp?.body?.data) body = Buffer.from(tp.body.data, "base64").toString("utf-8");
             else if (d.data.payload?.body?.data)
-                body = Buffer.from(d.data.payload.body.data, "base64").toString(
-                    "utf-8",
-                );
+                body = Buffer.from(d.data.payload.body.data, "base64").toString("utf-8");
 
             const result = {
                 id: emailId,
@@ -152,8 +134,7 @@ export const getEmailBodyTool = tool(
     },
     {
         name: "get_email_body",
-        description:
-            "Get full content of a specific email by ID. Use after list_emails.",
+        description: "Get full content of a specific email by ID. Use after list_emails.",
         schema: z.object({
             emailId: z.string().describe("Gmail message ID from list_emails"),
         }),
@@ -162,10 +143,7 @@ export const getEmailBodyTool = tool(
 
 // ── search_emails ─────────────────────────────────────────────────────────────
 export const searchEmailsTool = tool(
-    async (
-        { query, maxResults }: { query: string; maxResults?: number },
-        config?: RunnableConfig,
-    ) => {
+    async ({ query, maxResults }: { query: string; maxResults?: number }, config?: RunnableConfig) => {
         try {
             const token = config?.configurable?.googleAccessToken as string;
             const limit = Math.min(maxResults ?? 8, 10);
@@ -187,8 +165,7 @@ export const searchEmailsTool = tool(
                     metadataHeaders: ["Subject", "From", "Date"],
                 });
                 const h = d.data.payload?.headers ?? [];
-                const g = (n: string) =>
-                    h.find((x) => x.name === n)?.value ?? "";
+                const g = (n: string) => h.find((x) => x.name === n)?.value ?? "";
                 emails.push({
                     id: msg.id,
                     subject: g("Subject"),
@@ -208,12 +185,9 @@ export const searchEmailsTool = tool(
     },
     {
         name: "search_emails",
-        description:
-            "Search Gmail. Use when user wants to find emails by sender, subject, or keyword.",
+        description: "Search Gmail. Use when user wants to find emails by sender, subject, or keyword.",
         schema: z.object({
-            query: z
-                .string()
-                .describe('Gmail search e.g. "from:alice subject:report"'),
+            query: z.string().describe('Gmail search e.g. "from:alice subject:report"'),
             maxResults: z.number().min(1).max(10).default(8),
         }),
     },
@@ -222,12 +196,7 @@ export const searchEmailsTool = tool(
 // ── send_email ────────────────────────────────────────────────────────────────
 export const sendEmailTool = tool(
     async (
-        {
-            to,
-            subject,
-            body,
-            cc,
-        }: { to: string; subject: string; body: string; cc?: string },
+        { to, subject, body, cc }: { to: string; subject: string; body: string; cc?: string },
         config?: RunnableConfig,
     ) => {
         const confirmed = interrupt({
@@ -250,12 +219,7 @@ export const sendEmailTool = tool(
             const gmail = getClient(token);
             const lines = [`To: ${to}`, `Subject: ${subject}`];
             if (cc) lines.push(`Cc: ${cc}`);
-            lines.push(
-                "Content-Type: text/plain; charset=utf-8",
-                "MIME-Version: 1.0",
-                "",
-                body,
-            );
+            lines.push("Content-Type: text/plain; charset=utf-8", "MIME-Version: 1.0", "", body);
             const raw = Buffer.from(lines.join("\r\n")).toString("base64url");
             const res = await gmail.users.messages.send({
                 userId: "me",
@@ -284,10 +248,7 @@ export const sendEmailTool = tool(
 
 // ── reply_to_email ────────────────────────────────────────────────────────────
 export const replyEmailTool = tool(
-    async (
-        { emailId, body }: { emailId: string; body: string },
-        config?: RunnableConfig,
-    ) => {
+    async ({ emailId, body }: { emailId: string; body: string }, config?: RunnableConfig) => {
         const confirmed = interrupt({
             question: "Send this reply?",
             details: { replyingTo: emailId, bodyPreview: body.slice(0, 200) },
@@ -310,9 +271,7 @@ export const replyEmailTool = tool(
             const h = orig.data.payload?.headers ?? [];
             const g = (n: string) => h.find((x) => x.name === n)?.value ?? "";
             const from = g("From");
-            const subject = g("Subject").startsWith("Re:")
-                ? g("Subject")
-                : `Re: ${g("Subject")}`;
+            const subject = g("Subject").startsWith("Re:") ? g("Subject") : `Re: ${g("Subject")}`;
             const msgId = g("Message-ID");
             const threadId = orig.data.threadId ?? undefined;
 
@@ -342,8 +301,7 @@ export const replyEmailTool = tool(
     },
     {
         name: "reply_to_email",
-        description:
-            "Reply to an existing Gmail thread. Will ask user to confirm.",
+        description: "Reply to an existing Gmail thread. Will ask user to confirm.",
         schema: z.object({
             emailId: z.string().describe("Gmail message ID to reply to"),
             body: z.string().describe("Reply body text"),

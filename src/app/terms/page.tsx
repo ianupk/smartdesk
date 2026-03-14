@@ -9,23 +9,73 @@ export default function TermsPage() {
     return (
         <div style={{ background: "var(--bg)", minHeight: "100vh", color: "var(--text)" }}>
             {/* Nav */}
-            <nav style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "20px 40px", borderBottom: "1px solid var(--border)" }}>
+            <nav
+                style={{
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "space-between",
+                    padding: "20px 40px",
+                    borderBottom: "1px solid var(--border)",
+                }}
+            >
                 <Link href="/" style={{ display: "flex", alignItems: "center", gap: 8, textDecoration: "none" }}>
-                    <div style={{ width: 28, height: 28, borderRadius: 8, background: "linear-gradient(135deg, #d97706, #f59e0b)", display: "flex", alignItems: "center", justifyContent: "center" }}>
+                    <div
+                        style={{
+                            width: 28,
+                            height: 28,
+                            borderRadius: 8,
+                            background: "linear-gradient(135deg, #d97706, #f59e0b)",
+                            display: "flex",
+                            alignItems: "center",
+                            justifyContent: "center",
+                        }}
+                    >
                         <svg viewBox="0 0 16 16" fill="none" width="16" height="16" style={{ color: "#fff" }}>
-                            <path stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.5" d="M3.25 5.25v5.5m7.5-7.5h-5.5m7.5 2v5.5m-2 2h-5.5m6.5-2h1.5a1 1 0 0 1 1 1v1.5a1 1 0 0 1-1 1h-1.5a1 1 0 0 1-1-1v-1.5a1 1 0 0 1 1-1Zm-9 0h1.5a1 1 0 0 1 1 1v1.5a1 1 0 0 1-1 1h-1.5a1 1 0 0 1-1-1v-1.5a1 1 0 0 1 1-1Zm0-9h1.5a1 1 0 0 1 1 1v1.5a1 1 0 0 1-1 1h-1.5a1 1 0 0 1-1-1v-1.5a1 1 0 0 1 1-1Zm9 0h1.5a1 1 0 0 1 1 1v1.5a1 1 0 0 1-1 1h-1.5a1 1 0 0 1-1-1v-1.5a1 1 0 0 1 1-1Z" />
+                            <path
+                                stroke="currentColor"
+                                strokeLinecap="round"
+                                strokeLinejoin="round"
+                                strokeWidth="1.5"
+                                d="M3.25 5.25v5.5m7.5-7.5h-5.5m7.5 2v5.5m-2 2h-5.5m6.5-2h1.5a1 1 0 0 1 1 1v1.5a1 1 0 0 1-1 1h-1.5a1 1 0 0 1-1-1v-1.5a1 1 0 0 1 1-1Zm-9 0h1.5a1 1 0 0 1 1 1v1.5a1 1 0 0 1-1 1h-1.5a1 1 0 0 1-1-1v-1.5a1 1 0 0 1 1-1Zm0-9h1.5a1 1 0 0 1 1 1v1.5a1 1 0 0 1-1 1h-1.5a1 1 0 0 1-1-1v-1.5a1 1 0 0 1 1-1Zm9 0h1.5a1 1 0 0 1 1 1v1.5a1 1 0 0 1-1 1h-1.5a1 1 0 0 1-1-1v-1.5a1 1 0 0 1 1-1Z"
+                            />
                         </svg>
                     </div>
                     <span style={{ fontWeight: 600, fontSize: 15, color: "var(--text)" }}>SmartDesk</span>
                 </Link>
-                <Link href="/" style={{ fontSize: 13, color: "var(--text-3)", textDecoration: "none" }}>← Back</Link>
+                <Link href="/" style={{ fontSize: 13, color: "var(--text-3)", textDecoration: "none" }}>
+                    ← Back
+                </Link>
             </nav>
 
             {/* Content */}
             <div style={{ maxWidth: 720, margin: "0 auto", padding: "60px 24px" }}>
-                <p style={{ fontSize: 12, fontWeight: 600, letterSpacing: "0.1em", textTransform: "uppercase", color: "var(--accent)", marginBottom: 12 }}>Legal</p>
-                <h1 style={{ fontSize: 32, fontWeight: 700, letterSpacing: "-0.03em", marginBottom: 8, color: "var(--text)" }}>Terms of Service</h1>
-                <p style={{ fontSize: 13, color: "var(--text-3)", marginBottom: 48 }}>Last updated: {new Date().toLocaleDateString("en-US", { year: "numeric", month: "long", day: "numeric" })}</p>
+                <p
+                    style={{
+                        fontSize: 12,
+                        fontWeight: 600,
+                        letterSpacing: "0.1em",
+                        textTransform: "uppercase",
+                        color: "var(--accent)",
+                        marginBottom: 12,
+                    }}
+                >
+                    Legal
+                </p>
+                <h1
+                    style={{
+                        fontSize: 32,
+                        fontWeight: 700,
+                        letterSpacing: "-0.03em",
+                        marginBottom: 8,
+                        color: "var(--text)",
+                    }}
+                >
+                    Terms of Service
+                </h1>
+                <p style={{ fontSize: 13, color: "var(--text-3)", marginBottom: 48 }}>
+                    Last updated:{" "}
+                    {new Date().toLocaleDateString("en-US", { year: "numeric", month: "long", day: "numeric" })}
+                </p>
 
                 <div style={{ display: "flex", flexDirection: "column", gap: 40 }}>
                     {[
@@ -51,7 +101,7 @@ export default function TermsPage() {
                         },
                         {
                             title: "6. Disclaimer of Warranties",
-                            body: "SmartDesk is provided \"as is\" without warranties of any kind. We do not guarantee that the service will be uninterrupted, error-free, or that any AI-generated output will be accurate or suitable for your purposes. Always verify important information independently.",
+                            body: 'SmartDesk is provided "as is" without warranties of any kind. We do not guarantee that the service will be uninterrupted, error-free, or that any AI-generated output will be accurate or suitable for your purposes. Always verify important information independently.',
                         },
                         {
                             title: "7. Limitation of Liability",
@@ -71,7 +121,9 @@ export default function TermsPage() {
                         },
                     ].map(({ title, body }) => (
                         <section key={title}>
-                            <h2 style={{ fontSize: 16, fontWeight: 600, marginBottom: 10, color: "var(--text)" }}>{title}</h2>
+                            <h2 style={{ fontSize: 16, fontWeight: 600, marginBottom: 10, color: "var(--text)" }}>
+                                {title}
+                            </h2>
                             <p style={{ fontSize: 14, lineHeight: 1.75, color: "var(--text-3)" }}>{body}</p>
                         </section>
                     ))}

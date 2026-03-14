@@ -10,7 +10,7 @@ import { SuggestionGrid } from "@/components/chat/SuggestionGrid";
 import { Spinner } from "@/components/ui/Spinner";
 import { v4 as uuid } from "uuid";
 import type { ChatMessage as ChatMessageType, StreamEvent } from "@/types";
-
+import { Check, X, WifiOff } from "lucide-react";
 interface InterruptState {
     question: string;
     details: Record<string, unknown>;
@@ -134,7 +134,11 @@ export default function ChatThreadPage() {
                                 {
                                     id: uuid(),
                                     role: "assistant",
-                                    content: `⚠ ${event.message}`,
+                                    content: (
+                                        <>
+                                            <WifiOff className="inline w-4 h-4 mr-1 text-red-500" /> {event.message}
+                                        </>
+                                    ),
                                     toolCalls: [],
                                     createdAt: new Date(),
                                 },
@@ -148,7 +152,12 @@ export default function ChatThreadPage() {
                     {
                         id: uuid(),
                         role: "assistant",
-                        content: "⚠ Connection error. Please try again.",
+                        content: (
+                            <>
+                                <WifiOff className="inline w-4 h-4 mr-1 text-red-500" /> Connection error. Please try
+                                again.
+                            </>
+                        ),
                         toolCalls: [],
                         createdAt: new Date(),
                     },
@@ -186,16 +195,22 @@ export default function ChatThreadPage() {
                 {
                     id: uuid(),
                     role: "user",
-                    content: confirmed ? "✓ Yes, go ahead" : "✗ Cancel",
+                    content: confirmed ? (
+                        <>
+                            <Check className="inline w-4 h-4 mr-1" /> Yes, go ahead
+                        </>
+                    ) : (
+                        <>
+                            <X className="inline w-4 h-4 mr-1" /> Cancel
+                        </>
+                    ),
                     toolCalls: [],
                     createdAt: new Date(),
                 },
             ]);
             setInterrupt(null);
             setInterruptLoading(confirmed);
-            streamRequest({ resume: confirmed }).finally(() =>
-                setInterruptLoading(false),
-            );
+            streamRequest({ resume: confirmed }).finally(() => setInterruptLoading(false));
         },
         [streamRequest],
     );
@@ -262,18 +277,22 @@ export default function ChatThreadPage() {
 
                 {/* Bottom input bar — only shown once conversation has started */}
                 {(messages.length > 0 || !!streamingText) && (
-                    <div className="px-3 py-3 shrink-0"
+                    <div
+                        className="px-3 py-3 shrink-0"
                         style={{
                             background: "transparent",
                             paddingBottom: "max(12px, env(safe-area-inset-bottom))",
-                        }}>
+                        }}
+                    >
                         <div className="max-w-2xl mx-auto">
                             <ChatInput
                                 value={input}
                                 onChange={setInput}
                                 onSend={() => sendMessage()}
                                 disabled={loading || !!interrupt}
-                                placeholder={interrupt ? "Respond to the confirmation above…" : "Ask SmartDesk anything…"}
+                                placeholder={
+                                    interrupt ? "Respond to the confirmation above…" : "Ask SmartDesk anything…"
+                                }
                             />
                         </div>
                     </div>

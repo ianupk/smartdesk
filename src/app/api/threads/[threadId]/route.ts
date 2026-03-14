@@ -9,8 +9,7 @@ type RouteParams = { params: Promise<{ threadId: string }> };
 // GET /api/threads/[threadId] — fetch messages for a thread
 export async function GET(_req: NextRequest, { params }: RouteParams) {
     const session = await getServerSession(authOptions);
-    if (!session?.userId)
-        return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    if (!session?.userId) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
     const { threadId } = await params;
 
@@ -23,8 +22,7 @@ export async function GET(_req: NextRequest, { params }: RouteParams) {
         },
     });
 
-    if (!thread)
-        return NextResponse.json({ error: "Not found" }, { status: 404 });
+    if (!thread) return NextResponse.json({ error: "Not found" }, { status: 404 });
 
     return NextResponse.json({ thread });
 }
@@ -32,8 +30,7 @@ export async function GET(_req: NextRequest, { params }: RouteParams) {
 // PATCH /api/threads/[threadId] — update thread title
 export async function PATCH(req: NextRequest, { params }: RouteParams) {
     const session = await getServerSession(authOptions);
-    if (!session?.userId)
-        return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    if (!session?.userId) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
     const { threadId } = await params;
     const { title } = await req.json();
@@ -49,8 +46,7 @@ export async function PATCH(req: NextRequest, { params }: RouteParams) {
 // DELETE /api/threads/[threadId] — delete a thread
 export async function DELETE(_req: NextRequest, { params }: RouteParams) {
     const session = await getServerSession(authOptions);
-    if (!session?.userId)
-        return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    if (!session?.userId) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
     const { threadId } = await params;
 

@@ -5,36 +5,24 @@ import type { KnownBlock } from "@slack/web-api";
 import type { RunnableConfig } from "@langchain/core/runnables";
 
 function getToken(config?: RunnableConfig): string {
-    const token =
-        (config?.configurable?.slackAccessToken as string | undefined) ??
-        process.env.SLACK_BOT_TOKEN;
-    if (!token)
-        throw new Error(
-            "Slack is not connected. Please go to the Dashboard and click 'Connect Slack'.",
-        );
+    const token = (config?.configurable?.slackAccessToken as string | undefined) ?? process.env.SLACK_BOT_TOKEN;
+    if (!token) throw new Error("Slack is not connected. Please go to the Dashboard and click 'Connect Slack'.");
     return token;
 }
 
 function slackError(toolName: string, err: unknown): string {
     const msg = err instanceof Error ? err.message : String(err);
     const friendly: Record<string, string> = {
-        token_revoked:
-            "Slack token has been revoked. Please reconnect Slack from the Dashboard.",
-        invalid_auth:
-            "Invalid Slack token. Please reconnect Slack from the Dashboard.",
-        not_authed:
-            "Slack token is missing. Please connect Slack from the Dashboard.",
-        channel_not_found:
-            "Channel not found. Make sure the channel name is correct and the bot is in the channel.",
-        not_in_channel:
-            "Bot is not in that channel. In Slack, type: /invite @YourBotName",
+        token_revoked: "Slack token has been revoked. Please reconnect Slack from the Dashboard.",
+        invalid_auth: "Invalid Slack token. Please reconnect Slack from the Dashboard.",
+        not_authed: "Slack token is missing. Please connect Slack from the Dashboard.",
+        channel_not_found: "Channel not found. Make sure the channel name is correct and the bot is in the channel.",
+        not_in_channel: "Bot is not in that channel. In Slack, type: /invite @YourBotName",
         is_archived: "That channel is archived and cannot receive messages.",
-        missing_scope:
-            "Bot is missing required permissions. Re-install the Slack app with the required scopes.",
+        missing_scope: "Bot is missing required permissions. Re-install the Slack app with the required scopes.",
     };
     const slackCode = (err as { data?: { error?: string } })?.data?.error;
-    if (slackCode && friendly[slackCode])
-        return JSON.stringify({ error: friendly[slackCode] });
+    if (slackCode && friendly[slackCode]) return JSON.stringify({ error: friendly[slackCode] });
     for (const [key, value] of Object.entries(friendly)) {
         if (msg.includes(key)) return JSON.stringify({ error: value });
     }
@@ -57,8 +45,7 @@ export const listChannelsTool = tool(
                 limit: 50,
                 exclude_archived: true,
             });
-            if (!res.ok)
-                throw new Error(res.error ?? "Failed to list channels");
+            if (!res.ok) throw new Error(res.error ?? "Failed to list channels");
             const channels = (res.channels ?? []).map((c) => ({
                 id: c.id,
                 name: c.name,
@@ -83,10 +70,7 @@ export const listChannelsTool = tool(
 // ── send_slack_message ────────────────────────────────────────────────────────
 
 export const sendMessageTool = tool(
-    async (
-        { channel, text }: { channel: string; text: string },
-        config?: RunnableConfig,
-    ) => {
+    async ({ channel, text }: { channel: string; text: string }, config?: RunnableConfig) => {
         try {
             const client = new WebClient(getToken(config));
             const channelId = normaliseChannel(channel);
@@ -109,12 +93,9 @@ export const sendMessageTool = tool(
     },
     {
         name: "send_slack_message",
-        description:
-            "Send a text message to a Slack channel. Use when user wants to post or send something to Slack.",
+        description: "Send a text message to a Slack channel. Use when user wants to post or send something to Slack.",
         schema: z.object({
-            channel: z
-                .string()
-                .describe("Channel name (e.g. general) or ID (e.g. C0123456)"),
+            channel: z.string().describe("Channel name (e.g. general) or ID (e.g. C0123456)"),
             text: z.string().describe("The message text to send"),
         }),
     },
@@ -123,10 +104,7 @@ export const sendMessageTool = tool(
 // ── read_channel_messages ─────────────────────────────────────────────────────
 
 export const readChannelMessagesTool = tool(
-    async (
-        { channel, limit }: { channel: string; limit?: number },
-        config?: RunnableConfig,
-    ) => {
+    async ({ channel, limit }: { channel: string; limit?: number }, config?: RunnableConfig) => {
         try {
             const client = new WebClient(getToken(config));
             const channelId = normaliseChannel(channel);
@@ -134,24 +112,16 @@ export const readChannelMessagesTool = tool(
                 channel: channelId,
                 limit: limit ?? 20,
             });
-            if (!res.ok)
-                throw new Error(res.error ?? "Failed to read messages");
+            if (!res.ok) throw new Error(res.error ?? "Failed to read messages");
 
             // Resolve user IDs to names
-            const userIds = [
-                ...new Set(
-                    (res.messages ?? [])
-                        .map((m) => m.user)
-                        .filter(Boolean) as string[],
-                ),
-            ];
+            const userIds = [...new Set((res.messages ?? []).map((m) => m.user).filter(Boolean) as string[])];
             const userMap: Record<string, string> = {};
             await Promise.all(
                 userIds.map(async (uid) => {
                     try {
                         const info = await client.users.info({ user: uid });
-                        userMap[uid] =
-                            info.user?.real_name ?? info.user?.name ?? uid;
+                        userMap[uid] = info.user?.real_name ?? info.user?.name ?? uid;
                     } catch {
                         userMap[uid] = uid;
                     }
@@ -161,12 +131,8 @@ export const readChannelMessagesTool = tool(
             const messages = (res.messages ?? []).reverse().map((m) => ({
                 user: userMap[m.user ?? ""] ?? m.user ?? "unknown",
                 text: m.text ?? "",
-                timestamp: m.ts
-                    ? new Date(parseFloat(m.ts) * 1000).toISOString()
-                    : "",
-                reactions: (m.reactions ?? []).map(
-                    (r) => `${r.name}(${r.count})`,
-                ),
+                timestamp: m.ts ? new Date(parseFloat(m.ts) * 1000).toISOString() : "",
+                reactions: (m.reactions ?? []).map((r) => `${r.name}(${r.count})`),
             }));
 
             return JSON.stringify({
@@ -184,12 +150,7 @@ export const readChannelMessagesTool = tool(
             "Read recent messages from a Slack channel. Use when user wants to catch up on a channel or see what was discussed.",
         schema: z.object({
             channel: z.string().describe("Channel name or ID"),
-            limit: z
-                .number()
-                .min(1)
-                .max(50)
-                .default(20)
-                .describe("Number of recent messages to fetch"),
+            limit: z.number().min(1).max(50).default(20).describe("Number of recent messages to fetch"),
         }),
     },
 );
@@ -197,10 +158,7 @@ export const readChannelMessagesTool = tool(
 // ── search_slack ──────────────────────────────────────────────────────────────
 
 export const searchSlackTool = tool(
-    async (
-        { query, count }: { query: string; count?: number },
-        config?: RunnableConfig,
-    ) => {
+    async ({ query, count }: { query: string; count?: number }, config?: RunnableConfig) => {
         try {
             const client = new WebClient(getToken(config));
             const res = await client.search.messages({
@@ -215,9 +173,7 @@ export const searchSlackTool = tool(
                 channel: (m.channel as { name?: string })?.name ?? "unknown",
                 user: m.username ?? "unknown",
                 text: m.text ?? "",
-                timestamp: m.ts
-                    ? new Date(parseFloat(m.ts) * 1000).toISOString()
-                    : "",
+                timestamp: m.ts ? new Date(parseFloat(m.ts) * 1000).toISOString() : "",
                 permalink: m.permalink ?? "",
             }));
 
@@ -236,12 +192,7 @@ export const searchSlackTool = tool(
             "Search Slack messages across all channels. Use when user wants to find a specific message, topic, or conversation in Slack.",
         schema: z.object({
             query: z.string().describe("Search query text"),
-            count: z
-                .number()
-                .min(1)
-                .max(20)
-                .default(10)
-                .describe("Number of results"),
+            count: z.number().min(1).max(20).default(10).describe("Number of results"),
         }),
     },
 );
@@ -307,8 +258,7 @@ export const announceMeetingTool = tool(
                 text: `📅 Meeting: ${meetingTitle} — ${dateTime}`,
                 blocks,
             });
-            if (!res.ok)
-                throw new Error(res.error ?? "Failed to post announcement");
+            if (!res.ok) throw new Error(res.error ?? "Failed to post announcement");
             return JSON.stringify({
                 success: true,
                 channel: `#${channelId}`,

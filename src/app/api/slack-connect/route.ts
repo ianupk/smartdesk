@@ -22,23 +22,18 @@ import { prisma } from "@/lib/prisma";
 
 export async function GET(req: NextRequest) {
     const session = await getServerSession(authOptions);
-    if (!session?.userId)
-        return NextResponse.redirect(new URL("/login", req.url));
+    if (!session?.userId) return NextResponse.redirect(new URL("/login", req.url));
 
     const action = new URL(req.url).searchParams.get("action");
 
     if (action === "connect") {
         const clientId = process.env.SLACK_CLIENT_ID;
         if (!clientId) {
-            return NextResponse.redirect(
-                new URL("/dashboard?slack_error=missing_config", req.url),
-            );
+            return NextResponse.redirect(new URL("/dashboard?slack_error=missing_config", req.url));
         }
 
         // Encode userId in state so callback knows which user to save token for
-        const state = Buffer.from(
-            JSON.stringify({ userId: session.userId }),
-        ).toString("base64url");
+        const state = Buffer.from(JSON.stringify({ userId: session.userId })).toString("base64url");
 
         const redirectUri = `${process.env.NEXTAUTH_URL}/api/slack-callback`;
 
@@ -47,10 +42,7 @@ export async function GET(req: NextRequest) {
         authUrl.searchParams.set("redirect_uri", redirectUri);
         authUrl.searchParams.set("state", state);
         // Bot Token Scopes — must exactly match what's configured in api.slack.com/apps
-        authUrl.searchParams.set(
-            "scope",
-            "channels:read,channels:history,chat:write,users:read",
-        );
+        authUrl.searchParams.set("scope", "channels:read,channels:history,chat:write,users:read");
 
         return NextResponse.redirect(authUrl.toString());
     }
@@ -60,9 +52,7 @@ export async function GET(req: NextRequest) {
             await prisma.integration.deleteMany({
                 where: { userId: session.userId, provider: "slack" },
             });
-            return NextResponse.redirect(
-                new URL("/dashboard?slack_success=disconnected", req.url),
-            );
+            return NextResponse.redirect(new URL("/dashboard?slack_success=disconnected", req.url));
         } catch (err) {
             console.error("[slack-connect] disconnect error:", err);
             return NextResponse.redirect(new URL("/dashboard", req.url));

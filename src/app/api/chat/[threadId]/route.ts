@@ -40,10 +40,7 @@ function isGroqRateLimit(err: unknown): boolean {
     return msg.includes("rate_limit_exceeded") || msg.includes("429");
 }
 
-async function invokeWithRetry<T>(
-    fn: () => Promise<T>,
-    maxRetries = 2,
-): Promise<T> {
+async function invokeWithRetry<T>(fn: () => Promise<T>, maxRetries = 2): Promise<T> {
     let lastErr: unknown;
     for (let attempt = 0; attempt <= maxRetries; attempt++) {
         try {
@@ -63,9 +60,7 @@ async function invokeWithRetry<T>(
             }
 
             // TPM hit — wait the specified time then retry
-            console.log(
-                `[chat] Groq TPM rate limit — waiting ${waitMs}ms before retry ${attempt + 1}/${maxRetries}`,
-            );
+            console.log(`[chat] Groq TPM rate limit — waiting ${waitMs}ms before retry ${attempt + 1}/${maxRetries}`);
             await new Promise((r) => setTimeout(r, waitMs + 500)); // +500ms buffer
         }
     }
@@ -74,8 +69,7 @@ async function invokeWithRetry<T>(
 
 export async function POST(req: NextRequest, { params }: RouteParams) {
     const session = await getServerSession(authOptions);
-    if (!session?.userId)
-        return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    if (!session?.userId) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
     // Next.js 15: await params before accessing properties
     const { threadId } = await params;
@@ -83,11 +77,7 @@ export async function POST(req: NextRequest, { params }: RouteParams) {
     const thread = await prisma.thread.findFirst({
         where: { id: threadId, userId: session.userId },
     });
-    if (!thread)
-        return NextResponse.json(
-            { error: "Thread not found" },
-            { status: 404 },
-        );
+    if (!thread) return NextResponse.json({ error: "Thread not found" }, { status: 404 });
 
     const body = await req.json();
 
@@ -112,10 +102,7 @@ export async function POST(req: NextRequest, { params }: RouteParams) {
             slackAccessToken: session.slackAccessToken as string | undefined,
             zoomAccessToken: zoomToken,
             githubAccessToken: session.githubAccessToken as string | undefined,
-            todoistAccessToken: session.todoistAccessToken as
-                | string
-                | undefined,
-            timezone: "Asia/Kolkata",
+            todoistAccessToken: session.todoistAccessToken as string | undefined,
         },
         version: "v2" as const,
     };
@@ -159,15 +146,11 @@ export async function POST(req: NextRequest, { params }: RouteParams) {
                 let assistantText = "";
                 const toolsMade: string[] = [];
                 let interruptSent = false;
-                const isFirstMessage =
-                    thread.title === "New conversation" && !!userMessage;
+                const isFirstMessage = thread.title === "New conversation" && !!userMessage;
 
                 // Wrap the entire streamEvents loop in retry logic
                 await invokeWithRetry(async () => {
-                    for await (const event of graph.streamEvents(
-                        input as any,
-                        config,
-                    )) {
+                    for await (const event of graph.streamEvents(input as any, config)) {
                         if (event.event === "on_tool_start") {
                             if (!toolsMade.includes(event.name)) {
                                 toolsMade.push(event.name);
@@ -185,13 +168,8 @@ export async function POST(req: NextRequest, { params }: RouteParams) {
                                     ? chunk.content
                                     : Array.isArray(chunk?.content)
                                       ? chunk.content
-                                            .filter(
-                                                (c: { type: string }) =>
-                                                    c.type === "text",
-                                            )
-                                            .map(
-                                                (c: { text: string }) => c.text,
-                                            )
+                                            .filter((c: { type: string }) => c.type === "text")
+                                            .map((c: { text: string }) => c.text)
                                             .join("")
                                       : "";
                             if (text) {
@@ -203,12 +181,8 @@ export async function POST(req: NextRequest, { params }: RouteParams) {
                             }
                         }
 
-                        if (
-                            event.event === "on_chain_stream" &&
-                            event.data?.chunk?.__interrupt__
-                        ) {
-                            const intr =
-                                event.data.chunk.__interrupt__[0]?.value;
+                        if (event.event === "on_chain_stream" && event.data?.chunk?.__interrupt__) {
+                            const intr = event.data.chunk.__interrupt__[0]?.value;
                             if (intr && !interruptSent) {
                                 interruptSent = true;
                                 sse(controller, {
@@ -239,9 +213,7 @@ export async function POST(req: NextRequest, { params }: RouteParams) {
                     await prisma.thread.update({
                         where: { id: threadId },
                         data: {
-                            title: isFirstMessage
-                                ? userMessage.slice(0, 50)
-                                : undefined,
+                            title: isFirstMessage ? userMessage.slice(0, 50) : undefined,
                             updatedAt: new Date(),
                         },
                     });
@@ -255,17 +227,16 @@ export async function POST(req: NextRequest, { params }: RouteParams) {
                 console.error("[chat route] error:", raw);
 
                 const friendly = raw.includes("GROQ_TPD_EXHAUSTED")
-                    ? "⏳ Daily Groq token limit reached. Resets at midnight UTC. To continue now, add a second Groq API key or switch to `llama-3.1-8b-instant` in .env.local (uses separate quota)."
+                    ? "😅 Our developer is poor that's why you are seeing this! Retry in a bit."
                     : raw.includes("rate_limit_exceeded") || raw.includes("429")
-                      ? "Groq rate limit reached. Please wait a moment and try again."
+                      ? "⏳ Too many requests. Please wait a moment and try again."
                       : raw.includes("tool call validation failed")
-                        ? "A tool call failed — your integration token may have expired. Try reconnecting from Dashboard."
+                        ? "Integration error. Try reconnecting from Dashboard."
                         : raw.includes("insufficientPermissions")
-                          ? "Insufficient permissions. Please reconnect your Google account from Dashboard."
-                          : raw.includes("relation") &&
-                              raw.includes("does not exist")
-                            ? "Database not set up. Run: npx prisma db push"
-                            : raw;
+                          ? "Permission denied. Try reconnecting your account from Dashboard."
+                          : raw.includes("relation") && raw.includes("does not exist")
+                            ? "Setup issue. Please contact support."
+                            : "Something went wrong. Please try again.";
 
                 try {
                     sse(controller, { type: "error", message: friendly });

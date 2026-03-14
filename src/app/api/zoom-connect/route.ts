@@ -32,15 +32,11 @@ export async function GET(req: NextRequest) {
     if (action === "connect") {
         const clientId = process.env.ZOOM_CLIENT_ID;
         if (!clientId) {
-            return NextResponse.redirect(
-                new URL("/dashboard?zoom_error=missing_config", req.url),
-            );
+            return NextResponse.redirect(new URL("/dashboard?zoom_error=missing_config", req.url));
         }
 
         // Store userId in state so we know who to save the token for after redirect
-        const state = Buffer.from(
-            JSON.stringify({ userId: session.userId }),
-        ).toString("base64url");
+        const state = Buffer.from(JSON.stringify({ userId: session.userId })).toString("base64url");
 
         const redirectUri = `${process.env.NEXTAUTH_URL}/api/zoom-callback`;
         const authUrl = new URL("https://zoom.us/oauth/authorize");
@@ -64,26 +60,21 @@ export async function GET(req: NextRequest) {
                 },
             });
             if (integration?.accessToken) {
-                await fetch(
-                    `https://zoom.us/oauth/revoke?token=${integration.accessToken}`,
-                    {
-                        method: "POST",
-                        headers: {
-                            Authorization: `Basic ${Buffer.from(
-                                `${process.env.ZOOM_CLIENT_ID}:${process.env.ZOOM_CLIENT_SECRET}`,
-                            ).toString("base64")}`,
-                        },
+                await fetch(`https://zoom.us/oauth/revoke?token=${integration.accessToken}`, {
+                    method: "POST",
+                    headers: {
+                        Authorization: `Basic ${Buffer.from(
+                            `${process.env.ZOOM_CLIENT_ID}:${process.env.ZOOM_CLIENT_SECRET}`,
+                        ).toString("base64")}`,
                     },
-                ).catch(() => {}); // Best-effort
+                }).catch(() => {}); // Best-effort
             }
 
             await prisma.integration.deleteMany({
                 where: { userId: session.userId, provider: "zoom" },
             });
 
-            return NextResponse.redirect(
-                new URL("/dashboard?zoom_success=disconnected", req.url),
-            );
+            return NextResponse.redirect(new URL("/dashboard?zoom_success=disconnected", req.url));
         } catch (err) {
             console.error("[zoom-connect] disconnect error:", err);
             return NextResponse.redirect(new URL("/dashboard", req.url));

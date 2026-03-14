@@ -1,16 +1,7 @@
-import {
-    StateGraph,
-    MessagesAnnotation,
-    START,
-    END,
-} from "@langchain/langgraph";
+import { StateGraph, MessagesAnnotation, START, END } from "@langchain/langgraph";
 import { ToolNode, toolsCondition } from "@langchain/langgraph/prebuilt";
 import { ChatGroq } from "@langchain/groq";
-import {
-    SystemMessage,
-    AIMessage,
-    ToolMessage,
-} from "@langchain/core/messages";
+import { SystemMessage, AIMessage, ToolMessage } from "@langchain/core/messages";
 import type { BaseMessage } from "@langchain/core/messages";
 import type { RunnableConfig } from "@langchain/core/runnables";
 import { getCheckpointer } from "./checkpointer";
@@ -62,14 +53,7 @@ import { webSearchTool, searchNewsTool } from "./tools/tavily";
 // ── Tool registry ─────────────────────────────────────────────────────────────
 // Total tools: 21 (down from 38) — comfortably within free-tier LLM limits
 export const TOOL_GROUPS = {
-    gmail: [
-        listEmailsTool,
-        getEmailBodyTool,
-        sendEmailTool,
-        replyEmailTool,
-        searchEmailsTool,
-        markEmailReadTool,
-    ],
+    gmail: [listEmailsTool, getEmailBodyTool, sendEmailTool, replyEmailTool, searchEmailsTool, markEmailReadTool],
     calendar: [
         listEventsTool,
         checkConflictsTool,
@@ -78,20 +62,8 @@ export const TOOL_GROUPS = {
         updateEventTool,
         findFreeSlotsTools,
     ],
-    slack: [
-        listChannelsTool,
-        sendMessageTool,
-        announceMeetingTool,
-        readChannelMessagesTool,
-        searchSlackTool,
-    ],
-    zoom: [
-        listMeetingsTool,
-        createMeetingTool,
-        getMeetingTool,
-        deleteMeetingTool,
-        updateMeetingTool,
-    ],
+    slack: [listChannelsTool, sendMessageTool, announceMeetingTool, readChannelMessagesTool, searchSlackTool],
+    zoom: [listMeetingsTool, createMeetingTool, getMeetingTool, deleteMeetingTool, updateMeetingTool],
     github: [listReposTool],
     todoist: [
         listTasksTool,
@@ -110,20 +82,14 @@ export const ALL_TOOLS = Object.values(TOOL_GROUPS).flat();
 // ── Message trimmer ───────────────────────────────────────────────────────────
 // Keeps AIMessage(tool_calls) always paired with its ToolMessage(s).
 // 14000 chars = safe for Groq free tier (8b: ~8k ctx, 70b: ~32k ctx)
-function safeTrimMessages(
-    messages: BaseMessage[],
-    maxChars = 14000,
-): BaseMessage[] {
+function safeTrimMessages(messages: BaseMessage[], maxChars = 14000): BaseMessage[] {
     type Turn = BaseMessage[];
     const turns: Turn[] = [];
     let i = 0;
 
     while (i < messages.length) {
         const msg = messages[i];
-        const hasToolCalls =
-            msg instanceof AIMessage &&
-            Array.isArray(msg.tool_calls) &&
-            msg.tool_calls.length > 0;
+        const hasToolCalls = msg instanceof AIMessage && Array.isArray(msg.tool_calls) && msg.tool_calls.length > 0;
 
         if (hasToolCalls) {
             const group: BaseMessage[] = [msg];
@@ -141,11 +107,7 @@ function safeTrimMessages(
     }
 
     const charCount = (turn: Turn) =>
-        turn.reduce(
-            (acc, m) =>
-                acc + (typeof m.content === "string" ? m.content.length : 200),
-            0,
-        );
+        turn.reduce((acc, m) => acc + (typeof m.content === "string" ? m.content.length : 200), 0);
 
     let total = turns.reduce((acc, t) => acc + charCount(t), 0);
     while (total > maxChars && turns.length > 1) {
@@ -161,8 +123,7 @@ export function getActiveTools(config?: RunnableConfig) {
     const c = config?.configurable ?? {};
     const tools: (typeof ALL_TOOLS)[number][] = [];
 
-    if (c.googleAccessToken)
-        tools.push(...TOOL_GROUPS.gmail, ...TOOL_GROUPS.calendar);
+    if (c.googleAccessToken) tools.push(...TOOL_GROUPS.gmail, ...TOOL_GROUPS.calendar);
     if (c.slackAccessToken) tools.push(...TOOL_GROUPS.slack);
     if (c.zoomAccessToken) tools.push(...TOOL_GROUPS.zoom);
     if (c.githubAccessToken) tools.push(...TOOL_GROUPS.github);
@@ -173,10 +134,7 @@ export function getActiveTools(config?: RunnableConfig) {
 }
 
 // ── System prompt — concise to save Groq tokens ──────────────────────────────
-function buildSystemPrompt(
-    activeTools: ReturnType<typeof getActiveTools>,
-    config?: RunnableConfig,
-): string {
+function buildSystemPrompt(activeTools: ReturnType<typeof getActiveTools>, config?: RunnableConfig): string {
     const names = new Set(activeTools.map((t) => t.name));
     const connected: string[] = [];
 
@@ -196,14 +154,12 @@ function buildSystemPrompt(
         connected.push(
             "Zoom: list_zoom_meetings, create_zoom_meeting, get_zoom_meeting, update_zoom_meeting, delete_zoom_meeting",
         );
-    if (names.has("list_github_repos"))
-        connected.push("GitHub: list_github_repos");
+    if (names.has("list_github_repos")) connected.push("GitHub: list_github_repos");
     if (names.has("list_todoist_tasks"))
         connected.push(
             "Todoist: list_todoist_tasks, create_todoist_task, complete_todoist_task, update_todoist_task, delete_todoist_task, move_todoist_task, list_todoist_projects",
         );
-    if (names.has("web_search"))
-        connected.push("Tavily: web_search, search_news");
+    if (names.has("web_search")) connected.push("Tavily: web_search, search_news");
 
     const toolSection = connected.length
         ? connected.map((s) => `- ${s}`).join("\n")
@@ -213,10 +169,7 @@ function buildSystemPrompt(
     // This ensures the AI constructs ISO 8601 timestamps in the correct local
     // timezone rather than defaulting to UTC when interpreting user requests
     // like "schedule a meeting at 3 PM".
-    const userTimezone =
-        (config?.configurable?.timezone as string) ??
-        process.env.DEFAULT_TIMEZONE ??
-        "UTC";
+    const userTimezone = (config?.configurable?.timezone as string) ?? process.env.DEFAULT_TIMEZONE ?? "UTC";
 
     const now = new Date();
     const localDatetime = now.toLocaleString("en-US", {
@@ -237,8 +190,7 @@ function buildSystemPrompt(
         timeZoneName: "shortOffset",
     });
     const offsetParts = offsetFormatter.formatToParts(now);
-    const utcOffset =
-        offsetParts.find((p) => p.type === "timeZoneName")?.value ?? "UTC";
+    const utcOffset = offsetParts.find((p) => p.type === "timeZoneName")?.value ?? "UTC";
 
     return `You are SmartDesk, an AI productivity assistant.
 Current date and time: ${localDatetime} (${userTimezone}, ${utcOffset}).
@@ -275,10 +227,7 @@ function createLLM(tools: ReturnType<typeof getActiveTools>) {
 }
 
 // ── Agent node ────────────────────────────────────────────────────────────────
-async function agentNode(
-    state: typeof MessagesAnnotation.State,
-    config?: RunnableConfig,
-) {
+async function agentNode(state: typeof MessagesAnnotation.State, config?: RunnableConfig) {
     const activeTools = getActiveTools(config);
     const llm = createLLM(activeTools);
     const trimmed = safeTrimMessages(state.messages);
@@ -353,8 +302,6 @@ export async function getGraph(
         .compile({ checkpointer });
 
     _graphCache.set(key, { graph, toolCount: activeTools.length });
-    console.log(
-        `[graph] compiled for key="${key}" (${activeTools.length} tools)`,
-    );
+    console.log(`[graph] compiled for key="${key}" (${activeTools.length} tools)`);
     return graph;
 }

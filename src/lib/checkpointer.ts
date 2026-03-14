@@ -13,8 +13,7 @@ export async function getCheckpointer(): Promise<BaseCheckpointSaver> {
     _initPromise = (async () => {
         if (process.env.DATABASE_URL) {
             try {
-                const { PostgresSaver } =
-                    await import("@langchain/langgraph-checkpoint-postgres");
+                const { PostgresSaver } = await import("@langchain/langgraph-checkpoint-postgres");
                 const { Pool } = await import("pg");
                 const pool = new Pool({
                     connectionString: process.env.DATABASE_URL,
@@ -28,10 +27,7 @@ export async function getCheckpointer(): Promise<BaseCheckpointSaver> {
                 console.log("[checkpointer] PostgresSaver ready");
                 _checkpointer = saver;
             } catch (err) {
-                console.warn(
-                    "[checkpointer] Falling back to MemorySaver:",
-                    (err as Error).message,
-                );
+                console.warn("[checkpointer] Falling back to MemorySaver:", (err as Error).message);
                 _checkpointer = new MemorySaver();
             }
         } else {

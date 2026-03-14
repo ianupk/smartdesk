@@ -6,8 +6,7 @@ import { prisma } from "@/lib/prisma";
 // GET /api/threads — list all threads for current user
 export async function GET() {
     const session = await getServerSession(authOptions);
-    if (!session?.userId)
-        return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    if (!session?.userId) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
     const threads = await prisma.thread.findMany({
         where: { userId: session.userId },
@@ -39,8 +38,7 @@ export async function GET() {
 // POST /api/threads — create a new thread
 export async function POST() {
     const session = await getServerSession(authOptions);
-    if (!session?.userId)
-        return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    if (!session?.userId) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
     const thread = await prisma.thread.create({
         data: {

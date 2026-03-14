@@ -53,9 +53,7 @@ export async function getZoomToken(userId: string): Promise<string | null> {
         if (!integration) return null;
         if (!integration.refreshToken) return integration.accessToken;
 
-        const creds = Buffer.from(
-            `${process.env.ZOOM_CLIENT_ID}:${process.env.ZOOM_CLIENT_SECRET}`,
-        ).toString("base64");
+        const creds = Buffer.from(`${process.env.ZOOM_CLIENT_ID}:${process.env.ZOOM_CLIENT_SECRET}`).toString("base64");
 
         const res = await fetch("https://zoom.us/oauth/token", {
             method: "POST",
@@ -90,9 +88,6 @@ export async function getZoomToken(userId: string): Promise<string | null> {
 }
 
 // ─── Generic disconnect ───────────────────────────────────────────────────────
-export async function disconnectIntegration(
-    userId: string,
-    provider: Provider,
-) {
+export async function disconnectIntegration(userId: string, provider: Provider) {
     await prisma.integration.deleteMany({ where: { userId, provider } });
 }

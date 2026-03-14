@@ -22,24 +22,21 @@ import { randomBytes } from "crypto";
 
 export async function GET(req: NextRequest) {
     const session = await getServerSession(authOptions);
-    if (!session?.userId)
-        return NextResponse.redirect(new URL("/login", req.url));
+    if (!session?.userId) return NextResponse.redirect(new URL("/login", req.url));
 
     const action = new URL(req.url).searchParams.get("action");
 
     if (action === "connect") {
         const clientId = process.env.TODOIST_CLIENT_ID;
         if (!clientId) {
-            return NextResponse.redirect(
-                new URL("/dashboard?todoist_error=missing_config", req.url),
-            );
+            return NextResponse.redirect(new URL("/dashboard?todoist_error=missing_config", req.url));
         }
 
         // Encode userId + random nonce in state to prevent CSRF
         const state = Buffer.from(
             JSON.stringify({
                 userId: session.userId,
-                nonce:  randomBytes(8).toString("hex"),
+                nonce: randomBytes(8).toString("hex"),
             }),
         ).toString("base64url");
 
@@ -56,9 +53,7 @@ export async function GET(req: NextRequest) {
             await prisma.integration.deleteMany({
                 where: { userId: session.userId, provider: "todoist" },
             });
-            return NextResponse.redirect(
-                new URL("/dashboard?todoist_success=disconnected", req.url),
-            );
+            return NextResponse.redirect(new URL("/dashboard?todoist_success=disconnected", req.url));
         } catch (err) {
             console.error("[todoist-connect] disconnect error:", err);
             return NextResponse.redirect(new URL("/dashboard", req.url));

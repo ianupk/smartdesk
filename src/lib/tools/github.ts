@@ -4,22 +4,16 @@ import type { RunnableConfig } from "@langchain/core/runnables";
 
 function getToken(config?: RunnableConfig): string {
     const token = config?.configurable?.githubAccessToken as string | undefined;
-    if (!token)
-        throw new Error(
-            "GitHub is not connected. Go to Dashboard → Connect GitHub.",
-        );
+    if (!token) throw new Error("GitHub is not connected. Go to Dashboard → Connect GitHub.");
     return token;
 }
 
 function githubError(toolName: string, err: unknown): string {
     const msg = err instanceof Error ? err.message : String(err);
     const map: Record<string, string> = {
-        "Bad credentials":
-            "GitHub token is invalid or expired. Please reconnect from Dashboard.",
-        "Not Found":
-            "Repository or resource not found. Check the repo name (owner/repo format).",
-        "rate limit":
-            "GitHub API rate limit reached. Please wait a minute and try again.",
+        "Bad credentials": "GitHub token is invalid or expired. Please reconnect from Dashboard.",
+        "Not Found": "Repository or resource not found. Check the repo name (owner/repo format).",
+        "rate limit": "GitHub API rate limit reached. Please wait a minute and try again.",
     };
     for (const [k, v] of Object.entries(map)) {
         if (msg.includes(k)) return JSON.stringify({ error: v });
@@ -28,11 +22,7 @@ function githubError(toolName: string, err: unknown): string {
     return JSON.stringify({ error: msg });
 }
 
-async function ghFetch(
-    path: string,
-    token: string,
-    opts: RequestInit = {},
-): Promise<Response> {
+async function ghFetch(path: string, token: string, opts: RequestInit = {}): Promise<Response> {
     return fetch(`https://api.github.com${path}`, {
         ...opts,
         headers: {
@@ -49,10 +39,7 @@ async function ghFetch(
 // overwhelming the free-tier LLM with too many tool choices.
 
 export const listReposTool = tool(
-    async (
-        { visibility, sort }: { visibility?: string; sort?: string },
-        config?: RunnableConfig,
-    ) => {
+    async ({ visibility, sort }: { visibility?: string; sort?: string }, config?: RunnableConfig) => {
         try {
             const token = getToken(config);
             const params = new URLSearchParams({
@@ -61,10 +48,7 @@ export const listReposTool = tool(
                 visibility: visibility ?? "all",
             });
             const res = await ghFetch(`/user/repos?${params}`, token);
-            if (!res.ok)
-                throw new Error(
-                    `GitHub API ${res.status}: ${await res.text()}`,
-                );
+            if (!res.ok) throw new Error(`GitHub API ${res.status}: ${await res.text()}`);
             const repos = (await res.json()) as Record<string, unknown>[];
             return JSON.stringify({
                 repos: repos.map((r) => ({
@@ -88,14 +72,8 @@ export const listReposTool = tool(
         description:
             "List your GitHub repositories with language, stars, and open issues. Use when user asks about their repos or projects.",
         schema: z.object({
-            visibility: z
-                .enum(["all", "public", "private"])
-                .default("all")
-                .describe("Filter by repo visibility"),
-            sort: z
-                .enum(["updated", "created", "pushed", "full_name"])
-                .default("updated")
-                .describe("Sort order"),
+            visibility: z.enum(["all", "public", "private"]).default("all").describe("Filter by repo visibility"),
+            sort: z.enum(["updated", "created", "pushed", "full_name"]).default("updated").describe("Sort order"),
         }),
     },
 );

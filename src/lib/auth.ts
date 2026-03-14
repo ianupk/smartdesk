@@ -20,10 +20,7 @@ export const authOptions: NextAuthOptions = {
                         where: { email: credentials.email },
                     });
                     if (!user?.password) return null;
-                    const valid = await bcrypt.compare(
-                        credentials.password,
-                        user.password,
-                    );
+                    const valid = await bcrypt.compare(credentials.password, user.password);
                     if (!valid) return null;
                     return { id: user.id, email: user.email, name: user.name };
                 } catch (err) {
@@ -101,11 +98,7 @@ export const authOptions: NextAuthOptions = {
         },
         async jwt({ token, user, account }) {
             if (user?.id) token.userId = user.id;
-            if (
-                account?.provider === "google" &&
-                !token.userId &&
-                token.email
-            ) {
+            if (account?.provider === "google" && !token.userId && token.email) {
                 try {
                     const dbUser = await prisma.user.findUnique({
                         where: { email: token.email as string },
@@ -146,8 +139,7 @@ export const authOptions: NextAuthOptions = {
                             case "github":
                                 session.githubAccessToken = i.accessToken;
                                 session.hasGithub = true;
-                                session.githubUsername =
-                                    i.teamName ?? undefined;
+                                session.githubUsername = i.teamName ?? undefined;
                                 break;
                             case "todoist":
                                 session.todoistAccessToken = i.accessToken;
@@ -156,14 +148,10 @@ export const authOptions: NextAuthOptions = {
                                 break;
                         }
                     }
-                    if (!integrations.find((i) => i.provider === "slack"))
-                        session.hasSlack = false;
-                    if (!integrations.find((i) => i.provider === "zoom"))
-                        session.hasZoom = false;
-                    if (!integrations.find((i) => i.provider === "github"))
-                        session.hasGithub = false;
-                    if (!integrations.find((i) => i.provider === "todoist"))
-                        session.hasTodoist = false;
+                    if (!integrations.find((i) => i.provider === "slack")) session.hasSlack = false;
+                    if (!integrations.find((i) => i.provider === "zoom")) session.hasZoom = false;
+                    if (!integrations.find((i) => i.provider === "github")) session.hasGithub = false;
+                    if (!integrations.find((i) => i.provider === "todoist")) session.hasTodoist = false;
                 } catch (err) {
                     console.error("[session] DB error:", err);
                 }

@@ -3,7 +3,7 @@ import { prisma } from "@/lib/prisma";
 
 export async function GET(req: NextRequest) {
     const { searchParams } = new URL(req.url);
-    const code  = searchParams.get("code");
+    const code = searchParams.get("code");
     const state = searchParams.get("state");
     const error = searchParams.get("error");
 
@@ -29,7 +29,7 @@ export async function GET(req: NextRequest) {
                 redirect_uri: `${process.env.NEXTAUTH_URL}/api/github-callback`,
             }),
         });
-        const tokens = await tokenRes.json() as Record<string, string>;
+        const tokens = (await tokenRes.json()) as Record<string, string>;
         if (tokens.error || !tokens.access_token) {
             console.error("[github-callback] token error:", tokens);
             return NextResponse.redirect(new URL("/dashboard?github_error=token_exchange_failed", req.url));
@@ -38,14 +38,15 @@ export async function GET(req: NextRequest) {
         const profileRes = await fetch("https://api.github.com/user", {
             headers: { Authorization: `Bearer ${tokens.access_token}`, Accept: "application/vnd.github+json" },
         });
-        const profile = await profileRes.json() as Record<string, unknown>;
+        const profile = (await profileRes.json()) as Record<string, unknown>;
         const username = (profile.login as string) ?? "GitHub User";
-        const name     = (profile.name  as string) ?? username;
+        const name = (profile.name as string) ?? username;
 
         await prisma.integration.upsert({
             where: { userId_provider: { userId, provider: "github" } },
             create: {
-                userId, provider: "github",
+                userId,
+                provider: "github",
                 accessToken: tokens.access_token,
                 teamName: name,
             },
@@ -56,9 +57,13 @@ export async function GET(req: NextRequest) {
         });
 
         console.log("[github-callback] connected:", username, "for user:", userId);
-        return NextResponse.redirect(new URL(`/dashboard?github_success=1&username=${encodeURIComponent(username)}`, req.url));
+        return NextResponse.redirect(
+            new URL(`/dashboard?github_success=1&username=${encodeURIComponent(username)}`, req.url),
+        );
     } catch (err) {
         console.error("[github-callback] error:", err);
-        return NextResponse.redirect(new URL(`/dashboard?github_error=${encodeURIComponent((err as Error).message)}`, req.url));
+        return NextResponse.redirect(
+            new URL(`/dashboard?github_error=${encodeURIComponent((err as Error).message)}`, req.url),
+        );
     }
 }

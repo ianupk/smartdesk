@@ -7,8 +7,8 @@ export const metadata: Metadata = {
     title: { default: "SmartDesk", template: "%s · SmartDesk" },
     description: "AI productivity agent — Gmail, Calendar & Slack via LangGraph",
     verification: {
-    google: "T1Z_b_EtATTa-GQqWQzfZP714ePEcJBRPCn1__k4LJQ"
-  }
+        google: "T1Z_b_EtATTa-GQqWQzfZP714ePEcJBRPCn1__k4LJQ",
+    },
 };
 
 export const viewport: Viewport = {
@@ -19,11 +19,7 @@ export const viewport: Viewport = {
     themeColor: "#0c0d11",
 };
 
-export default function RootLayout({
-    children,
-}: {
-    children: React.ReactNode;
-}) {
+export default function RootLayout({ children }: { children: React.ReactNode }) {
     return (
         <html lang="en" className="h-full dark">
             <body className="h-full dark">

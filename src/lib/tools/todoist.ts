@@ -3,13 +3,8 @@ import { z } from "zod";
 import type { RunnableConfig } from "@langchain/core/runnables";
 
 function getToken(config?: RunnableConfig): string {
-    const token = config?.configurable?.todoistAccessToken as
-        | string
-        | undefined;
-    if (!token)
-        throw new Error(
-            "Todoist is not connected. Go to Dashboard → Connect Todoist.",
-        );
+    const token = config?.configurable?.todoistAccessToken as string | undefined;
+    if (!token) throw new Error("Todoist is not connected. Go to Dashboard → Connect Todoist.");
     return token;
 }
 
@@ -28,11 +23,7 @@ function todoistError(toolName: string, err: unknown): string {
     return JSON.stringify({ error: msg });
 }
 
-async function tdFetch(
-    path: string,
-    token: string,
-    opts: RequestInit = {},
-): Promise<Response> {
+async function tdFetch(path: string, token: string, opts: RequestInit = {}): Promise<Response> {
     return fetch(`https://api.todoist.com/api/v1${path}`, {
         ...opts,
         headers: {
@@ -54,11 +45,7 @@ const PRIORITY_LABEL: Record<number, string> = {
 
 export const listTasksTool = tool(
     async (
-        {
-            filter,
-            projectId,
-            limit,
-        }: { filter?: string; projectId?: string; limit?: number },
+        { filter, projectId, limit }: { filter?: string; projectId?: string; limit?: number },
         config?: RunnableConfig,
     ) => {
         try {
@@ -68,17 +55,10 @@ export const listTasksTool = tool(
             else if (!projectId) params.set("filter", "today | overdue");
             if (projectId) params.set("project_id", projectId);
             const res = await tdFetch(`/tasks?${params}`, token);
-            if (!res.ok)
-                throw new Error(
-                    `Todoist API ${res.status}: ${await res.text()}`,
-                );
+            if (!res.ok) throw new Error(`Todoist API ${res.status}: ${await res.text()}`);
             const raw = await res.json();
             const tasks = (
-                Array.isArray(raw)
-                    ? raw
-                    : ((raw as Record<string, unknown>).results ??
-                      raw.items ??
-                      [])
+                Array.isArray(raw) ? raw : ((raw as Record<string, unknown>).results ?? raw.items ?? [])
             ) as Record<string, unknown>[];
             const sliced = tasks.slice(0, limit ?? 20);
             return JSON.stringify({
@@ -86,10 +66,7 @@ export const listTasksTool = tool(
                     id: t.id,
                     content: t.content,
                     description: (t.description as string)?.slice(0, 150),
-                    due:
-                        (t.due as Record<string, unknown>)?.string ??
-                        (t.due as Record<string, unknown>)?.date ??
-                        null,
+                    due: (t.due as Record<string, unknown>)?.string ?? (t.due as Record<string, unknown>)?.date ?? null,
                     priority: PRIORITY_LABEL[t.priority as number] ?? "normal",
                     projectId: t.project_id,
                     labels: t.labels,
@@ -111,13 +88,8 @@ export const listTasksTool = tool(
             filter: z
                 .string()
                 .optional()
-                .describe(
-                    "Todoist filter e.g. 'today', 'overdue', 'p1'. Leave blank for today+overdue.",
-                ),
-            projectId: z
-                .string()
-                .optional()
-                .describe("Filter by project ID from list_todoist_projects"),
+                .describe("Todoist filter e.g. 'today', 'overdue', 'p1'. Leave blank for today+overdue."),
+            projectId: z.string().optional().describe("Filter by project ID from list_todoist_projects"),
             limit: z.number().min(1).max(50).default(20),
         }),
     },
@@ -156,10 +128,7 @@ export const createTaskTool = tool(
                 method: "POST",
                 body: JSON.stringify(body),
             });
-            if (!res.ok)
-                throw new Error(
-                    `Todoist API ${res.status}: ${await res.text()}`,
-                );
+            if (!res.ok) throw new Error(`Todoist API ${res.status}: ${await res.text()}`);
             const task = (await res.json()) as Record<string, unknown>;
             return JSON.stringify({
                 success: true,
@@ -184,15 +153,8 @@ export const createTaskTool = tool(
             dueString: z
                 .string()
                 .optional()
-                .describe(
-                    "Natural language due date: 'today', 'tomorrow', 'next Monday', 'every day at 9am'",
-                ),
-            priority: z
-                .number()
-                .min(1)
-                .max(4)
-                .optional()
-                .describe("1=normal, 2=medium, 3=high, 4=urgent"),
+                .describe("Natural language due date: 'today', 'tomorrow', 'next Monday', 'every day at 9am'"),
+            priority: z.number().min(1).max(4).optional().describe("1=normal, 2=medium, 3=high, 4=urgent"),
             projectId: z.string().optional(),
             labels: z.array(z.string()).optional(),
         }),
@@ -202,19 +164,13 @@ export const createTaskTool = tool(
 // ── complete_todoist_task ─────────────────────────────────────────────────────
 
 export const completeTaskTool = tool(
-    async (
-        { taskId, content }: { taskId: string; content?: string },
-        config?: RunnableConfig,
-    ) => {
+    async ({ taskId, content }: { taskId: string; content?: string }, config?: RunnableConfig) => {
         try {
             const token = getToken(config);
             const res = await tdFetch(`/tasks/${taskId}/close`, token, {
                 method: "POST",
             });
-            if (!res.ok && res.status !== 204)
-                throw new Error(
-                    `Todoist API ${res.status}: ${await res.text()}`,
-                );
+            if (!res.ok && res.status !== 204) throw new Error(`Todoist API ${res.status}: ${await res.text()}`);
             return JSON.stringify({
                 success: true,
                 message: `Task "${content ?? taskId}" marked as complete ✓`,
@@ -225,14 +181,10 @@ export const completeTaskTool = tool(
     },
     {
         name: "complete_todoist_task",
-        description:
-            "Mark a Todoist task as complete. Use when user says they finished a task.",
+        description: "Mark a Todoist task as complete. Use when user says they finished a task.",
         schema: z.object({
             taskId: z.string().describe("Task ID from list_todoist_tasks"),
-            content: z
-                .string()
-                .optional()
-                .describe("Task name for confirmation message"),
+            content: z.string().optional().describe("Task name for confirmation message"),
         }),
     },
 );
@@ -267,10 +219,7 @@ export const updateTaskTool = tool(
                 method: "POST",
                 body: JSON.stringify(body),
             });
-            if (!res.ok)
-                throw new Error(
-                    `Todoist API ${res.status}: ${await res.text()}`,
-                );
+            if (!res.ok) throw new Error(`Todoist API ${res.status}: ${await res.text()}`);
             const task = (await res.json()) as Record<string, unknown>;
             return JSON.stringify({
                 success: true,
@@ -286,15 +235,11 @@ export const updateTaskTool = tool(
     },
     {
         name: "update_todoist_task",
-        description:
-            "Update a Todoist task — change its name, due date, or priority.",
+        description: "Update a Todoist task — change its name, due date, or priority.",
         schema: z.object({
             taskId: z.string().describe("Task ID from list_todoist_tasks"),
             content: z.string().optional().describe("New task name"),
-            dueString: z
-                .string()
-                .optional()
-                .describe("New due date: 'tomorrow', 'next Friday', etc."),
+            dueString: z.string().optional().describe("New due date: 'tomorrow', 'next Friday', etc."),
             priority: z.number().min(1).max(4).optional(),
             description: z.string().optional(),
         }),
@@ -304,19 +249,13 @@ export const updateTaskTool = tool(
 // ── delete_todoist_task ───────────────────────────────────────────────────────
 
 export const deleteTaskTool = tool(
-    async (
-        { taskId, content }: { taskId: string; content?: string },
-        config?: RunnableConfig,
-    ) => {
+    async ({ taskId, content }: { taskId: string; content?: string }, config?: RunnableConfig) => {
         try {
             const token = getToken(config);
             const res = await tdFetch(`/tasks/${taskId}`, token, {
                 method: "DELETE",
             });
-            if (!res.ok && res.status !== 204)
-                throw new Error(
-                    `Todoist API ${res.status}: ${await res.text()}`,
-                );
+            if (!res.ok && res.status !== 204) throw new Error(`Todoist API ${res.status}: ${await res.text()}`);
             return JSON.stringify({
                 success: true,
                 message: `Task "${content ?? taskId}" deleted.`,
@@ -331,10 +270,7 @@ export const deleteTaskTool = tool(
             "Permanently delete a Todoist task. Use when user wants to remove a task entirely (not just complete it).",
         schema: z.object({
             taskId: z.string().describe("Task ID from list_todoist_tasks"),
-            content: z
-                .string()
-                .optional()
-                .describe("Task name for confirmation message"),
+            content: z.string().optional().describe("Task name for confirmation message"),
         }),
     },
 );
@@ -343,11 +279,7 @@ export const deleteTaskTool = tool(
 
 export const moveTaskTool = tool(
     async (
-        {
-            taskId,
-            projectId,
-            content,
-        }: { taskId: string; projectId: string; content?: string },
+        { taskId, projectId, content }: { taskId: string; projectId: string; content?: string },
         config?: RunnableConfig,
     ) => {
         try {
@@ -356,10 +288,7 @@ export const moveTaskTool = tool(
                 method: "POST",
                 body: JSON.stringify({ project_id: projectId }),
             });
-            if (!res.ok)
-                throw new Error(
-                    `Todoist API ${res.status}: ${await res.text()}`,
-                );
+            if (!res.ok) throw new Error(`Todoist API ${res.status}: ${await res.text()}`);
             return JSON.stringify({
                 success: true,
                 message: `Task "${content ?? taskId}" moved to project ${projectId}.`,
@@ -374,13 +303,8 @@ export const moveTaskTool = tool(
             "Move a Todoist task to a different project. Use list_todoist_projects first to get the project ID.",
         schema: z.object({
             taskId: z.string().describe("Task ID from list_todoist_tasks"),
-            projectId: z
-                .string()
-                .describe("Target project ID from list_todoist_projects"),
-            content: z
-                .string()
-                .optional()
-                .describe("Task name for confirmation"),
+            projectId: z.string().describe("Target project ID from list_todoist_projects"),
+            content: z.string().optional().describe("Task name for confirmation"),
         }),
     },
 );
@@ -392,16 +316,12 @@ export const listProjectsTool = tool(
         try {
             const token = getToken(config);
             const res = await tdFetch("/projects", token);
-            if (!res.ok)
-                throw new Error(
-                    `Todoist API ${res.status}: ${await res.text()}`,
-                );
+            if (!res.ok) throw new Error(`Todoist API ${res.status}: ${await res.text()}`);
             const raw = await res.json();
-            const projects = (
-                Array.isArray(raw)
-                    ? raw
-                    : ((raw as Record<string, unknown>).results ?? [])
-            ) as Record<string, unknown>[];
+            const projects = (Array.isArray(raw) ? raw : ((raw as Record<string, unknown>).results ?? [])) as Record<
+                string,
+                unknown
+            >[];
             return JSON.stringify({
                 projects: projects.map((p) => ({
                     id: p.id,
@@ -419,8 +339,7 @@ export const listProjectsTool = tool(
     },
     {
         name: "list_todoist_projects",
-        description:
-            "List all Todoist projects. Use before adding or moving a task to a specific project.",
+        description: "List all Todoist projects. Use before adding or moving a task to a specific project.",
         schema: z.object({
             _unused: z.string().optional().describe("ignored"),
         }),

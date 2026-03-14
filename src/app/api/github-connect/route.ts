@@ -23,26 +23,18 @@ import { prisma } from "@/lib/prisma";
 
 export async function GET(req: NextRequest) {
     const session = await getServerSession(authOptions);
-    if (!session?.userId)
-        return NextResponse.redirect(new URL("/login", req.url));
+    if (!session?.userId) return NextResponse.redirect(new URL("/login", req.url));
 
     const action = new URL(req.url).searchParams.get("action");
 
     if (action === "connect") {
         if (!process.env.GITHUB_CLIENT_ID) {
-            return NextResponse.redirect(
-                new URL("/dashboard?github_error=missing_config", req.url),
-            );
+            return NextResponse.redirect(new URL("/dashboard?github_error=missing_config", req.url));
         }
-        const state = Buffer.from(
-            JSON.stringify({ userId: session.userId }),
-        ).toString("base64url");
+        const state = Buffer.from(JSON.stringify({ userId: session.userId })).toString("base64url");
         const url = new URL("https://github.com/login/oauth/authorize");
         url.searchParams.set("client_id", process.env.GITHUB_CLIENT_ID);
-        url.searchParams.set(
-            "redirect_uri",
-            `${process.env.NEXTAUTH_URL}/api/github-callback`,
-        );
+        url.searchParams.set("redirect_uri", `${process.env.NEXTAUTH_URL}/api/github-callback`);
         url.searchParams.set("scope", "repo read:user read:org");
         url.searchParams.set("state", state);
         return NextResponse.redirect(url.toString());
@@ -59,32 +51,23 @@ export async function GET(req: NextRequest) {
                 },
             });
             // Best-effort token revocation
-            if (
-                integration?.accessToken &&
-                process.env.GITHUB_CLIENT_ID &&
-                process.env.GITHUB_CLIENT_SECRET
-            ) {
-                await fetch(
-                    `https://api.github.com/applications/${process.env.GITHUB_CLIENT_ID}/token`,
-                    {
-                        method: "DELETE",
-                        headers: {
-                            Authorization: `Basic ${Buffer.from(`${process.env.GITHUB_CLIENT_ID}:${process.env.GITHUB_CLIENT_SECRET}`).toString("base64")}`,
-                            Accept: "application/vnd.github+json",
-                            "Content-Type": "application/json",
-                        },
-                        body: JSON.stringify({
-                            access_token: integration.accessToken,
-                        }),
+            if (integration?.accessToken && process.env.GITHUB_CLIENT_ID && process.env.GITHUB_CLIENT_SECRET) {
+                await fetch(`https://api.github.com/applications/${process.env.GITHUB_CLIENT_ID}/token`, {
+                    method: "DELETE",
+                    headers: {
+                        Authorization: `Basic ${Buffer.from(`${process.env.GITHUB_CLIENT_ID}:${process.env.GITHUB_CLIENT_SECRET}`).toString("base64")}`,
+                        Accept: "application/vnd.github+json",
+                        "Content-Type": "application/json",
                     },
-                ).catch(() => {});
+                    body: JSON.stringify({
+                        access_token: integration.accessToken,
+                    }),
+                }).catch(() => {});
             }
             await prisma.integration.deleteMany({
                 where: { userId: session.userId, provider: "github" },
             });
-            return NextResponse.redirect(
-                new URL("/dashboard?github_success=disconnected", req.url),
-            );
+            return NextResponse.redirect(new URL("/dashboard?github_success=disconnected", req.url));
         } catch (err) {
             console.error("[github-connect] disconnect:", err);
             return NextResponse.redirect(new URL("/dashboard", req.url));

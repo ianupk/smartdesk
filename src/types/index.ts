@@ -16,12 +16,7 @@ declare module "next-auth" {
     }
 }
 
-export type IntegrationProvider =
-    | "google"
-    | "slack"
-    | "zoom"
-    | "github"
-    | "todoist";
+export type IntegrationProvider = "google" | "slack" | "zoom" | "github" | "todoist";
 
 export interface DashboardStats {
     totalThreads: number;
@@ -51,7 +46,7 @@ export interface ChatThread {
 export interface ChatMessage {
     id: string;
     role: "user" | "assistant";
-    content: string;
+    content: string | React.ReactNode;
     toolCalls: string[];
     createdAt: Date;
 }

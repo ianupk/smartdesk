@@ -22,7 +22,9 @@ export function KeyboardShortcuts() {
             } catch {
                 console.error("[KeyboardShortcuts] failed to create thread");
             } finally {
-                setTimeout(() => { busy.current = false; }, 800);
+                setTimeout(() => {
+                    busy.current = false;
+                }, 800);
             }
         };
         window.addEventListener("keydown", handler);
