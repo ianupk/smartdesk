@@ -10,7 +10,7 @@ import { SuggestionGrid } from "@/components/chat/SuggestionGrid";
 import { Spinner } from "@/components/ui/Spinner";
 import { v4 as uuid } from "uuid";
 import type { ChatMessage as ChatMessageType, StreamEvent } from "@/types";
-import { Check, X, WifiOff } from "lucide-react";
+
 interface InterruptState {
     question: string;
     details: Record<string, unknown>;
@@ -137,13 +137,10 @@ export default function ChatThreadPage() {
                                 {
                                     id: uuid(),
                                     role: "assistant",
-                                    content: (
-                                        <>
-                                            <WifiOff className="inline w-4 h-4 mr-1 text-red-500" /> {event.message}
-                                        </>
-                                    ),
+                                    content: event.message ?? "Something went wrong. Please try again.",
                                     toolCalls: [],
                                     createdAt: new Date(),
+                                    isError: true,
                                 },
                             ]);
                         }
@@ -155,14 +152,10 @@ export default function ChatThreadPage() {
                     {
                         id: uuid(),
                         role: "assistant",
-                        content: (
-                            <>
-                                <WifiOff className="inline w-4 h-4 mr-1 text-red-500" /> Connection error. Please try
-                                again.
-                            </>
-                        ),
+                        content: "Can't reach the server. Check your connection and try again.",
                         toolCalls: [],
                         createdAt: new Date(),
+                        isError: true,
                     },
                 ]);
             }
@@ -198,15 +191,7 @@ export default function ChatThreadPage() {
                 {
                     id: uuid(),
                     role: "user",
-                    content: confirmed ? (
-                        <>
-                            <Check className="inline w-4 h-4 mr-1" /> Yes, go ahead
-                        </>
-                    ) : (
-                        <>
-                            <X className="inline w-4 h-4 mr-1" /> Cancel
-                        </>
-                    ),
+                    content: confirmed ? "✓ Yes, go ahead" : "✗ Cancel",
                     toolCalls: [],
                     createdAt: new Date(),
                 },

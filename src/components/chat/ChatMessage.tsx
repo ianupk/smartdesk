@@ -1,6 +1,17 @@
 import ReactMarkdown from "react-markdown";
+import { WifiOff, AlertCircle, Clock, ShieldAlert } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { ChatMessage as ChatMessageType } from "@/types";
+
+function ErrorIcon({ message }: { message: string }) {
+    if (message.includes("connection") || message.includes("reach the server"))
+        return <WifiOff className="w-4 h-4 shrink-0" />;
+    if (message.includes("overloaded") || message.includes("Too many") || message.includes("taking too long"))
+        return <Clock className="w-4 h-4 shrink-0" />;
+    if (message.includes("permission") || message.includes("reconnect"))
+        return <ShieldAlert className="w-4 h-4 shrink-0" />;
+    return <AlertCircle className="w-4 h-4 shrink-0" />;
+}
 
 const TOOL_LABELS: Record<string, string> = {
     list_emails: "Gmail",
@@ -63,9 +74,14 @@ export function ChatMessage({ message }: { message: ChatMessageType }) {
                 >
                     {isUser ? (
                         <p>{message.content}</p>
+                    ) : message.isError ? (
+                        <p className="flex items-center gap-1.5 text-red-400">
+                            <ErrorIcon message={message.content} />
+                            {message.content}
+                        </p>
                     ) : (
                         <div className="prose-chat">
-                            <ReactMarkdown>{typeof message.content === "string" ? message.content : ""}</ReactMarkdown>
+                            <ReactMarkdown>{message.content}</ReactMarkdown>
                         </div>
                     )}
                 </div>

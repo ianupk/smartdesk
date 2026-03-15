@@ -123,7 +123,7 @@ export async function POST(req: NextRequest, { params }: RouteParams) {
                 try {
                     sse(controller, {
                         type: "error",
-                        message: "Request timed out. Please try again.",
+                        message: "This is taking too long. Please try again.",
                     });
                     controller.close();
                 } catch (_) {}
@@ -233,15 +233,15 @@ export async function POST(req: NextRequest, { params }: RouteParams) {
                 console.error("[chat route] error:", raw);
 
                 const friendly = raw.includes("GROQ_TPD_EXHAUSTED")
-                    ? "😅 Our developer is poor that's why you are seeing this! Retry in a bit."
+                    ? "I'm a bit overloaded right now — try again in a few minutes."
                     : raw.includes("rate_limit_exceeded") || raw.includes("429")
-                      ? "⏳ Too many requests. Please wait a moment and try again."
+                      ? "Too many requests at once. Give me a moment and try again."
                       : raw.includes("tool call validation failed")
-                        ? "Integration error. Try reconnecting from Dashboard."
+                        ? "I had trouble connecting to that service. Try reconnecting it from the Dashboard."
                         : raw.includes("insufficientPermissions")
-                          ? "Permission denied. Try reconnecting your account from Dashboard."
+                          ? "I don't have permission to do that. Try reconnecting your account from the Dashboard."
                           : raw.includes("relation") && raw.includes("does not exist")
-                            ? "Setup issue. Please contact support."
+                            ? "Something isn't set up correctly on our end. Please try again later."
                             : "Something went wrong. Please try again.";
 
                 try {

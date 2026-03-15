@@ -46,9 +46,10 @@ export interface ChatThread {
 export interface ChatMessage {
     id: string;
     role: "user" | "assistant";
-    content: string | React.ReactNode;
+    content: string;
     toolCalls: string[];
     createdAt: Date;
+    isError?: boolean;
 }
 
 export interface StreamEvent {
