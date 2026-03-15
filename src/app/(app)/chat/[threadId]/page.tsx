@@ -76,7 +76,10 @@ export default function ChatThreadPage() {
                 const res = await fetch(`/api/chat/${threadId}`, {
                     method: "POST",
                     headers: { "Content-Type": "application/json" },
-                    body: JSON.stringify(body),
+                    body: JSON.stringify({
+                        ...body,
+                        timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
+                    }),
                 });
                 if (!res.ok) throw new Error(`HTTP ${res.status}`);
 

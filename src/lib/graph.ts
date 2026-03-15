@@ -172,32 +172,64 @@ function buildSystemPrompt(activeTools: ReturnType<typeof getActiveTools>, confi
     const userTimezone = (config?.configurable?.timezone as string) ?? process.env.DEFAULT_TIMEZONE ?? "UTC";
 
     const now = new Date();
-    const localDatetime = now.toLocaleString("en-US", {
-        timeZone: userTimezone,
-        weekday: "long",
-        year: "numeric",
-        month: "long",
-        day: "numeric",
-        hour: "2-digit",
-        minute: "2-digit",
-        hour12: true,
-    });
 
-    // Compute UTC offset string for the timezone (e.g. "UTC+5:30")
-    const utcOffsetMinutes = -now.getTimezoneOffset(); // getTimezoneOffset is local, so use Intl instead
+    // Compute the UTC offset for the user's timezone (e.g. "+05:30" for IST).
+    // We use Intl to get the correct offset for THIS instant (handles DST).
     const offsetFormatter = new Intl.DateTimeFormat("en-US", {
         timeZone: userTimezone,
         timeZoneName: "shortOffset",
     });
     const offsetParts = offsetFormatter.formatToParts(now);
-    const utcOffset = offsetParts.find((p) => p.type === "timeZoneName")?.value ?? "UTC";
+    const utcOffsetLabel = offsetParts.find((p) => p.type === "timeZoneName")?.value ?? "UTC"; // e.g. "GMT+5:30"
+
+    // Build a ±HH:MM offset string for ISO 8601 (e.g. "+05:30").
+    // Parse the offset minutes from Intl so it's always accurate.
+    const localParts = new Intl.DateTimeFormat("en-US", {
+        timeZone: userTimezone,
+        year: "numeric",
+        month: "2-digit",
+        day: "2-digit",
+        hour: "2-digit",
+        minute: "2-digit",
+        second: "2-digit",
+        hour12: false,
+    }).formatToParts(now);
+    const gp = (type: string) => localParts.find((p) => p.type === type)?.value ?? "00";
+    // Reconstruct a local datetime string, then diff against UTC to get the real offset.
+    const localMs = Date.UTC(
+        parseInt(gp("year")),
+        parseInt(gp("month")) - 1,
+        parseInt(gp("day")),
+        parseInt(gp("hour")) % 24,
+        parseInt(gp("minute")),
+        parseInt(gp("second")),
+    );
+    const totalOffsetMin = Math.round((localMs - now.getTime()) / 60000);
+    const sign = totalOffsetMin >= 0 ? "+" : "-";
+    const absMin = Math.abs(totalOffsetMin);
+    const isoOffset = `${sign}${String(Math.floor(absMin / 60)).padStart(2, "0")}:${String(absMin % 60).padStart(2, "0")}`;
+
+    // The precise current local time as a full ISO 8601 string (e.g. "2026-03-15T11:09:37+05:30").
+    // Giving the AI this exact string means it can compute "now + N minutes" by simple
+    // arithmetic on the minutes field, instead of parsing a human-readable sentence.
+    const nowIso = now
+        .toISOString()
+        .replace("Z", isoOffset)
+        .replace(/T(\d{2}:\d{2}:\d{2})\.\d+/, (_: string, hms: string) => {
+            // Replace with local H:M:S (the UTC hours in toISOString are wrong for local time)
+            return `T${gp("hour").padStart(2, "0")}:${gp("minute").padStart(2, "0")}:${gp("second").padStart(2, "0")}`;
+        });
 
     return `You are SmartDesk, an AI productivity assistant.
-Current date and time: ${localDatetime} (${userTimezone}, ${utcOffset}).
+Current time (EXACT): ${nowIso}
+Timezone: ${userTimezone} (${utcOffsetLabel})
 
-When creating or updating calendar events, always produce ISO 8601 datetime strings
-that include the user's UTC offset (e.g. "2026-03-15T15:00:00+05:30"), NOT bare UTC
-strings ending in "Z" unless the user explicitly requests UTC.
+CRITICAL — time arithmetic rules:
+- "now" = ${nowIso} — use this exact timestamp as your reference for ALL relative time expressions.
+- "in X minutes" → add X to the minute value of ${nowIso}, carrying over to hours/days as needed.
+- "in X hours"   → add X to the hour value, carrying over to days as needed.
+- Always double-check your arithmetic before calling a tool.
+- All event datetimes MUST include the UTC offset: e.g. "2026-03-15T11:24:00${isoOffset}", NOT ending in "Z".
 
 Available tools:
 ${toolSection}

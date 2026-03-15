@@ -81,6 +81,11 @@ export async function POST(req: NextRequest, { params }: RouteParams) {
 
     const body = await req.json();
 
+    // Read the IANA timezone sent by the browser (e.g. "Asia/Kolkata").
+    // Falls back to the DEFAULT_TIMEZONE env var, then "UTC".
+    const timezone: string =
+        typeof body.timezone === "string" && body.timezone ? body.timezone : (process.env.DEFAULT_TIMEZONE ?? "UTC");
+
     // Refresh Google + Zoom tokens proactively before every request
     let googleToken = session.googleAccessToken as string | undefined;
     if (session.userId && googleToken) {
@@ -98,6 +103,7 @@ export async function POST(req: NextRequest, { params }: RouteParams) {
         configurable: {
             thread_id: threadId,
             userId: session.userId,
+            timezone,
             googleAccessToken: googleToken,
             slackAccessToken: session.slackAccessToken as string | undefined,
             zoomAccessToken: zoomToken,
