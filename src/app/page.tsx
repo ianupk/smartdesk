@@ -537,11 +537,13 @@ function LandingPage() {
                                         strokeLinecap="round"
                                         strokeLinejoin="round"
                                     >
-                                        <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
+                                        <path d="M12 2L2 7l10 5 10-5-10-5z" />
+                                        <path d="M2 17l10 5 10-5" />
+                                        <path d="M2 12l10 5 10-5" />
                                     </svg>
                                 ),
-                                title: "One AI for everything",
-                                desc: "Ask anything across your tools. No more switching tabs — SmartDesk handles it all in a single conversation.",
+                                title: "All your tools, one place",
+                                desc: "Connect Gmail, Slack, GitHub, Calendar, Zoom and Todoist. Ask one question, get answers from all of them.",
                             },
                             {
                                 icon: (
@@ -555,13 +557,11 @@ function LandingPage() {
                                         strokeLinecap="round"
                                         strokeLinejoin="round"
                                     >
-                                        <path d="M12 2L2 7l10 5 10-5-10-5z" />
-                                        <path d="M2 17l10 5 10-5" />
-                                        <path d="M2 12l10 5 10-5" />
+                                        <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
                                     </svg>
                                 ),
-                                title: "All your tools, one place",
-                                desc: "Connect Gmail, Slack, GitHub, Calendar, Zoom and Todoist. Ask one question, get answers from all of them.",
+                                title: "One AI for everything",
+                                desc: "Ask anything across your tools. No more switching tabs — SmartDesk handles it all in a single conversation.",
                             },
                             {
                                 icon: (
